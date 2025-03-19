@@ -1,0 +1,38 @@
+.sidebar {
+    width: 15%;
+    padding: 10px;
+    background: #737373;
+    min-width: 15%;
+}
+
+.add-car {
+    width: 75%;
+    background: black;
+    color: #ffffff;
+    padding: 5px;
+    border-radius: 10px;
+}
+
+.search {
+    width: 90%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    margin-bottom: 1rem;
+}
+
+.priceInterval{
+    display:flex;
+    flex-direction: row;
+    width: 80%;
+    padding: 0.5rem;
+    margin: 3px;
+    text-size-adjust: 50%;
+}
+
+.MinMaxPrice{
+    display:flex;
+    flex-direction: row;
+    width: 90%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+}
