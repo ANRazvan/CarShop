@@ -150,7 +150,7 @@ function App() {
         <Navbar />
         <Routes>
             <Route path ="/" element={<CarShop cars={cars}/>} />
-            <Route path ="/CarDetail/:id" element={<CarDetail cars={cars} />} />
+            <Route path ="/CarDetail/:id" element={<CarDetail cars={cars}  setcars={setcars}/>} />
             <Route path="/AddCar" element={<AddCar cars={cars} setcars={setcars}/>} />
         </Routes>
         <Footer />
