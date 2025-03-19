@@ -1,22 +1,3 @@
-// import CheckboxList from "./CheckboxList.jsx";
-// import React from "react";
-// import "./Sidebar.css";
-//
-// const Sidebar = () => (
-//     <div className="sidebar">
-//         <button className="add-car">Add new car</button>
-//         <input className="search" type="text" placeholder="Search" />
-//         <CheckboxList title="Make" items={["Mazda", "Volkswagen", "BMW", "Mercedes", "Audi"]} />
-//         <CheckboxList title="Fuel Type" items={["Diesel", "Gas", "Hybrid", "Electric"]} />
-//         <h4>Price Interval</h4>
-//         <div className="MinMaxPrice">
-//             <input className="priceInterval" type="text" placeholder="Min price" />
-//             <input className="priceInterval" type="text" placeholder="Max price" />
-//         </div>
-//     </div>
-// );
-//
-// export default Sidebar;
 
 import React from 'react';
 import CheckboxList from './CheckboxList.jsx';
