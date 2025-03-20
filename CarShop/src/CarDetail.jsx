@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom'; 
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import './CarDetail.css';
 
 const CarDetail = ({ cars, setcars }) => {
@@ -22,6 +23,11 @@ const CarDetail = ({ cars, setcars }) => {
         }
     };
 
+    // Update car function
+    const handeUpdate = () => {
+        navigate(`/update/${id}`); // Redirect to the update page with the car ID
+    };
+
     return (
         <div className="car-container">
             <div className="car-main">
@@ -37,7 +43,9 @@ const CarDetail = ({ cars, setcars }) => {
                     <div className="button-group">
                         <button className="add-to-cart">Add to cart</button>
                         <button className="delete" onClick={handleDelete}>Delete</button>
-                        <button className="edit">Edit</button>
+                        <Link to={`/UpdateCar/${car.id}`} className="update-link">
+                        <button className="update">Update</button>  
+                        </Link>
                     </div>
                 </div>
             </div>

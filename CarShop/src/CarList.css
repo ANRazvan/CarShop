@@ -42,8 +42,7 @@ body {
 }
 
 .car-list {
-    width: 100%;
-    display: grid;
+        display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
     padding: 43px;
@@ -76,4 +75,34 @@ body {
 .detail-link:hover{
     color: #000000;
     text-decoration: none;
+}
+
+.centered-div {
+    width: 80%;         /* Set a width (or it can be any other value) */
+    text-align: center; /* Optional: center text inside the div */
+}
+
+
+
+.no-cars-message {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;  /* Horizontally center */
+    align-items: center;      /* Vertically center */
+    text-align: center;       /* Horizontally center text */
+    min-height: 200px;           /* Prevents shrinking when empty */
+    min-width:600px ;
+    width: 100%;              /* Ensures it takes full width */
+    background-color: #f8f8f8; /* Optional: Adds a light background */
+}
+
+
+.no-cars-message h2 {
+    font-size: 1.4rem;
+    color: #333;
+}
+
+.no-cars-message p {
+    font-size: 1.2rem;
+    color: #666;
 }

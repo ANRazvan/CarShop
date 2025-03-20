@@ -1,20 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import "./AddCar.css";
-import { useNavigate } from "react-router-dom";
 
-const AddCar = ({ id, cars, setcars }) => {
-    const [car, setCar] = useState({
-        make: "",
-        model: "",
-        year: "",
-        keywords: "",
-        description: "",
-        price: "",
-        img: "",
-    });
-
-    const [errors, setErrors] = useState({}); // State for error messages
+const UpdateCar = ({ cars, setcars }) => {
+    const { id } = useParams(); // Get the car id from the URL
     const navigate = useNavigate(); // Get navigate function
+
+    // Find the car to update based on the id from URL
+    const carToUpdate = cars.find(car => car.id === parseInt(id));
+
+    const [car, setCar] = useState(carToUpdate 
+    //     || {
+    //     make: "",
+    //     model: "",
+    //     year: "",
+    //     keywords: "",
+    //     description: "",
+    //     price: "",
+    //     img: "",
+    //     fuelType: ""
+    // }
+    );
+
+    const [errors, setErrors] = useState({});
+
+    useEffect(() => {
+        if (carToUpdate) {
+            // Pre-fill the form fields with the existing car data
+            setCar(carToUpdate);
+        }
+    }, [carToUpdate]);
 
     const validateForm = () => {
         let newErrors = {};
@@ -52,7 +67,7 @@ const AddCar = ({ id, cars, setcars }) => {
                 return;
             }
 
-            const imageUrl = `/${file.name}`; // Assuming images are stored in public folder
+            const imageUrl = `/${file.name}`; // Assuming images are stored in the public folder
             setCar({ ...car, img: imageUrl });
             setErrors({ ...errors, img: "" }); // Clear image errors
         }
@@ -65,37 +80,51 @@ const AddCar = ({ id, cars, setcars }) => {
 
     const handleSubmit = () => {
         if (validateForm()) {
-            console.log("Car Added:", car);
-            setcars([...cars, car]);
-            alert("Car successfully added!"); // Show success message
-            setCar({
-                make: "",
-                model: "",
-                year: "",
-                keywords: "",
-                description: "",
-                fuelType: "",
-                price: "",
-                img: "",
-            }); // Reset form after submission
+            // Update the car in the cars array
+            const updatedCars = cars.map(c => (c.id === car.id ? car : c));
+            setcars(updatedCars);  // Update the cars state with the modified car
+            alert("Car updated successfully!");
+            navigate('/'); // Redirect to home or car list page
         }
-        navigate('/');  
     };
+
     const handleCancel = () => {
-        navigate('/');
+        navigate('/'); // Cancel the update and go back to the home page
+    };
+
+    if (!carToUpdate) {
+        return <p>Car not found</p>; // If car doesn't exist, show this message
     }
 
     return (
         <div className="add-car-container">
-            <h2>Add a new car</h2>
+            <h2>Update Car Details</h2>
             <div className="input-group">
-                <input type="text" name="make" placeholder="Make" value={car.make} onChange={handleChange} />
+                <input
+                    type="text"
+                    name="make"
+                    placeholder="Make"
+                    value={car.make}
+                    onChange={handleChange}
+                />
                 {errors.make && <p className="error">{errors.make}</p>}
 
-                <input type="text" name="model" placeholder="Model" value={car.model} onChange={handleChange} />
+                <input
+                    type="text"
+                    name="model"
+                    placeholder="Model"
+                    value={car.model}
+                    onChange={handleChange}
+                />
                 {errors.model && <p className="error">{errors.model}</p>}
 
-                <input type="number" name="year" placeholder="Year" value={car.year} onChange={handleChange} />
+                <input
+                    type="number"
+                    name="year"
+                    placeholder="Year"
+                    value={car.year}
+                    onChange={handleChange}
+                />
                 {errors.year && <p className="error">{errors.year}</p>}
 
                 <select name="fuelType" value={car.fuelType} onChange={handleChange}>
@@ -106,16 +135,28 @@ const AddCar = ({ id, cars, setcars }) => {
                     <option value="Electric">Electric</option>
                 </select>
 
-                <input type="text" name="keywords" placeholder="Keywords" value={car.keywords} onChange={handleChange} />
+                <input
+                    type="text"
+                    name="keywords"
+                    placeholder="Keywords"
+                    value={car.keywords}
+                    onChange={handleChange}
+                />
 
-                <input type="number" name="price" placeholder="Price" value={car.price} onChange={handleChange} />
+                <input
+                    type="number"
+                    name="price"
+                    placeholder="Price"
+                    value={car.price}
+                    onChange={handleChange}
+                />
                 {errors.price && <p className="error">{errors.price}</p>}
             </div>
 
             <div className="image-preview">
                 {car.img ? (
                     <>
-                        <img src={car.img} alt="Uploaded Car" />
+                        <img src={"/" + car.img} alt="Uploaded Car" />
                         <button className="remove-image" onClick={removeImage}>Remove Image</button>
                     </>
                 ) : (
@@ -135,11 +176,11 @@ const AddCar = ({ id, cars, setcars }) => {
             {errors.description && <p className="error">{errors.description}</p>}
 
             <div className="button-group">
-                <button className="add-car" onClick={handleSubmit}>Add Car</button>
-                <button className="cancel"onClick={handleCancel}>Cancel</button>
+                <button className="add-car" onClick={handleSubmit}>Update Car</button>
+                <button className="cancel" onClick={handleCancel}>Cancel</button>
             </div>
         </div>
     );
 };
 
-export default AddCar;
+export default UpdateCar;
