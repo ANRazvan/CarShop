@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import './CarDetail.css';
 
-const CarDetail = ({ cars, setcars }) => {
+const CarDetail = ({ cars, setcars, handleDelete1 }) => {
     const { id } = useParams(); // Get car ID from URL
     const car = cars.find(car => car.id === parseInt(id)); // Find the car by ID
     const navigate = useNavigate(); // Get navigate function
@@ -27,6 +27,7 @@ const CarDetail = ({ cars, setcars }) => {
             // Delete the car from the cars list
             setcars(cars.filter(c => c.id !== car.id)); // Update the cars list by removing the car
             navigate('/'); // Redirect to home page or another page after deletion
+            handleDelete1();
         }
     };
 
