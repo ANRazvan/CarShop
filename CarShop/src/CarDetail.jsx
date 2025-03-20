@@ -2,11 +2,15 @@ import React from 'react';
 import { useParams } from 'react-router-dom'; 
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 import './CarDetail.css';
 
 const CarDetail = ({ cars, setcars }) => {
+const CarDetail = ({ cars, setcars }) => {
     const { id } = useParams(); // Get car ID from URL
     const car = cars.find(car => car.id === parseInt(id)); // Find the car by ID
+    const navigate = useNavigate(); // Get navigate function
     const navigate = useNavigate(); // Get navigate function
 
     if (!car) {
@@ -28,6 +32,16 @@ const CarDetail = ({ cars, setcars }) => {
         navigate(`/update/${id}`); // Redirect to the update page with the car ID
     };
 
+    // Delete car function
+    const handleDelete = () => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this car?");
+        if (confirmDelete) {
+            // Delete the car from the cars list
+            setcars(cars.filter(c => c.id !== car.id)); // Update the cars list by removing the car
+            navigate('/'); // Redirect to home page or another page after deletion
+        }
+    };
+
     return (
         <div className="car-container">
             <div className="car-main">
@@ -46,6 +60,8 @@ const CarDetail = ({ cars, setcars }) => {
                         <Link to={`/UpdateCar/${car.id}`} className="update-link">
                         <button className="update">Update</button>  
                         </Link>
+                        <button className="delete" onClick={handleDelete}>Delete</button>
+                        <button className="edit">Edit</button>
                     </div>
                 </div>
             </div>
