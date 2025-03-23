@@ -54,12 +54,13 @@
     margin-top: 10px;
 }
 
-.add-to-cart, .delete, .edit {
+.add-to-cart, .delete, .update {
     padding: 10px;
     margin-right: 10px;
     border: none;
     cursor: pointer;
     border-radius: 5px;
+    min-width: 245px;
 }
 
 .add-to-cart {

@@ -25,8 +25,7 @@ const Sidebar = ({cars, selectedMakes, setSelectedMakes,selectedFuel,setSelected
             />
             <CheckboxList
                 title="Fuel Type"
-                // items={["Diesel", "Gas", "Hybrid", "Electric"]}
-                items={["Diesel", "Gas", "Hybrid", "Electric"]}
+                items={["Diesel", "Gasoline", "Hybrid", "Electric"]}
                 selectedItems={selectedFuel}  // Empty array for selected items
                 setSelectedItems={setSelectedFuel} // Empty function (you can update later if needed)
                 />

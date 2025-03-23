@@ -6,11 +6,12 @@
 }
 
 .add-car {
-    width: 75%;
+    width: 97%; /* Make the width the same as the search bar */
     background: black;
     color: #ffffff;
     padding: 5px;
     border-radius: 10px;
+    margin-bottom: 1rem; /* Add space between the add car button and the search bar */
 }
 
 .search {
@@ -18,10 +19,11 @@
     padding: 0.5rem;
     border: 1px solid #ccc;
     margin-bottom: 1rem;
+    border-radius: 10px;
 }
 
-.priceInterval{
-    display:flex;
+.priceInterval {
+    display: flex;
     flex-direction: row;
     width: 80%;
     padding: 0.5rem;
@@ -29,8 +31,8 @@
     text-size-adjust: 50%;
 }
 
-.MinMaxPrice{
-    display:flex;
+.MinMaxPrice {
+    display: flex;
     flex-direction: row;
     width: 90%;
     padding: 0.5rem;

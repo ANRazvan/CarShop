@@ -6,7 +6,9 @@ import Navbar from './Navbar.jsx'
 import CarDetail from './CarDetail.jsx'
 import AddCar from "./AddCar.jsx";
 import UpdateCar from './UpdateCar.jsx';
-
+import Statistics from './Statistics.jsx';
+import Charts from './Charts.jsx'; // Import the Charts component
+import './Charts.css'; // Import the Charts CSS
 
 function App() {
 
@@ -40,7 +42,7 @@ function App() {
             "year": "2021",
             "keywords": "1.8 VTEC Turbo 2021",
             "description": "A modern compact car with a 1.8L VTEC turbocharged engine, providing an ideal balance of performance and efficiency. The Honda Civic boasts a sporty design, premium cabin, and advanced driver assistance features, making it a top choice for urban driving.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 21000,
             "img": "civic.jpeg"
         },
@@ -62,7 +64,7 @@ function App() {
             "year": "2021",
             "keywords": "2.0 Motor 2021",
             "description": "A high-performance luxury sedan with a 2.0 motor, a refined interior, cutting-edge technology, and intelligent safety features such as parking assistance and collision prevention.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 35000,
             "img": "bmw3series.jpeg"
         },
@@ -73,7 +75,7 @@ function App() {
             "year": "2020",
             "keywords": "2.0 Turbocharged 2020",
             "description": "The Mercedes-Benz C-Class is a premium sedan known for its sophisticated design, a 2.0L turbocharged engine, and a smooth 9-speed automatic transmission. It offers an upscale cabin, advanced infotainment, and driver assistance systems for maximum comfort and safety.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 40000,
             "img": "cclass.jpeg"
         },
@@ -84,7 +86,7 @@ function App() {
             "year": "2019",
             "keywords": "2.0 TFSI Quattro 2019",
             "description": "The Audi A4 is a compact luxury sedan featuring a 2.0L TFSI engine, quattro all-wheel drive, and a high-quality interior with leather seats and ambient lighting. Its digital cockpit and intuitive MMI infotainment system make for a refined driving experience.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 37000,
             "img": "audia4.jpeg"
         },
@@ -95,7 +97,7 @@ function App() {
             "year": "2018",
             "keywords": "2.0 EcoBlue Diesel 2018",
             "description": "A practical and efficient midsize car equipped with a 2.0L EcoBlue diesel engine. The Ford Mondeo combines modern styling with a spacious interior, a SYNC 3 infotainment system, and multiple safety features, making it a great choice for families and professionals.",
-            "fuelType": "Diesel",
+            "fuelType": "Gasoline",
             "price": 20000,
             "img": "mondeo.jpeg"
         },
@@ -106,7 +108,7 @@ function App() {
             "year": "2021",
             "keywords": "1.6 Turbocharged 2021",
             "description": "The Hyundai Sonata is a sleek and fuel-efficient sedan powered by a 1.6L turbocharged engine. It features a futuristic design, a digital instrument cluster, wireless charging, and SmartSense safety technologies for a high-tech driving experience.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 28000,
             "img": "sonata.jpeg"
         },
@@ -117,7 +119,7 @@ function App() {
             "year": "2022",
             "keywords": "2.5L VC-Turbo 2022",
             "description": "The Nissan Altima is a dynamic midsize sedan offering a 2.5L VC-Turbo engine and all-wheel drive capability. Its ProPILOT Assist, premium Bose sound system, and spacious cabin make it an excellent choice for comfort and innovation.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 29000,
             "img": "altima.jpeg"
         },
@@ -128,7 +130,7 @@ function App() {
             "year": "2019",
             "keywords": "2.4 GDI 2019",
             "description": "The Kia Optima is a stylish and practical sedan with a 2.4L GDI engine. It offers advanced driver assistance features, an 8-inch touchscreen infotainment system, and a comfortable ride, making it an ideal car for daily commutes and long journeys.",
-            "fuelType": "Gas",
+            "fuelType": "Gasoline",
             "price": 23000,
             "img": "optima.jpeg"
         },
@@ -156,18 +158,18 @@ function App() {
         }
     ];
 
-;
     const [cars,setcars] = useState(hardcars);
 
   return(
     <Router>
         <Navbar />
         <Routes>
-            <Route path ="/" element={<CarShop cars={cars}/>} />
+            <Route path ="/" element={<CarShop cars={cars}/>} /> {/* Pass cars and setCars to CarShop */}
             <Route path ="/CarDetail/:id" element={<CarDetail cars={cars}  setcars={setcars}/>} />
             <Route path="/AddCar" element={<AddCar cars={cars} setcars={setcars}/>} />
             <Route path="/UpdateCar/:id" element={<UpdateCar cars={cars} setcars={setcars}/>} />
         </Routes>   
+        <Charts cars={cars} setCars={setcars} /> {/* Pass cars and setCars to Charts */}
         <Footer />
     </Router>
   );

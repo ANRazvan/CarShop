@@ -9,10 +9,16 @@
 .Cover-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: white;
+    color: rgb(255, 255, 255);
+}
+
+.Cover-overlay h2 {
+    font-size: 2.5em;
+    margin: 0;
+    color:rgb(215, 215, 215);
 }

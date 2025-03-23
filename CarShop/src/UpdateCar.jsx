@@ -9,17 +9,16 @@ const UpdateCar = ({ cars, setcars }) => {
     // Find the car to update based on the id from URL
     const carToUpdate = cars.find(car => car.id === parseInt(id));
 
-    const [car, setCar] = useState(carToUpdate 
-    //     || {
-    //     make: "",
-    //     model: "",
-    //     year: "",
-    //     keywords: "",
-    //     description: "",
-    //     price: "",
-    //     img: "",
-    //     fuelType: ""
-    // }
+    const [car, setCar] = useState( {
+        make: carToUpdate.make,
+        model: carToUpdate.model,
+        year: carToUpdate.year,
+        keywords: carToUpdate.keywords,
+        description: carToUpdate.description,
+        price: carToUpdate.price,
+        img: "/"+carToUpdate.img,
+        fuelType: carToUpdate   .fuelType
+    }
     );
 
     const [errors, setErrors] = useState({});
@@ -156,7 +155,7 @@ const UpdateCar = ({ cars, setcars }) => {
             <div className="image-preview">
                 {car.img ? (
                     <>
-                        <img src={"/" + car.img} alt="Uploaded Car" />
+                        <img src={car.img} alt="Uploaded Car" />
                         <button className="remove-image" onClick={removeImage}>Remove Image</button>
                     </>
                 ) : (
