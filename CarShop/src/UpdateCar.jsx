@@ -1,185 +1,185 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import "./AddCar.css";
+    import React, { useState, useEffect } from "react";
+    import { useNavigate, useParams } from "react-router-dom";
+    import "./AddCar.css";
 
-const UpdateCar = ({ cars, setcars }) => {
-    const { id } = useParams(); // Get the car id from the URL
-    const navigate = useNavigate(); // Get navigate function
+    const UpdateCar = ({ cars, setcars }) => {
+        const { id } = useParams(); // Get the car id from the URL
+        const navigate = useNavigate(); // Get navigate function
 
-    // Find the car to update based on the id from URL
-    const carToUpdate = cars.find(car => car.id === parseInt(id));
+        // Find the car to update based on the id from URL
+        const carToUpdate = cars.find(car => car.id === parseInt(id));
 
-    const [car, setCar] = useState( {
-        make: carToUpdate.make,
-        model: carToUpdate.model,
-        year: carToUpdate.year,
-        keywords: carToUpdate.keywords,
-        description: carToUpdate.description,
-        price: carToUpdate.price,
-        img: "/"+carToUpdate.img,
-        fuelType: carToUpdate   .fuelType
-    }
-    );
-
-    const [errors, setErrors] = useState({});
-
-    useEffect(() => {
-        if (carToUpdate) {
-            // Pre-fill the form fields with the existing car data
-            setCar(carToUpdate);
+        const [car, setCar] = useState( {
+            make: carToUpdate.make,
+            model: carToUpdate.model,
+            year: carToUpdate.year,
+            keywords: carToUpdate.keywords,
+            description: carToUpdate.description,
+            price: carToUpdate.price,
+            img: "/"+carToUpdate.img,
+            fuelType: carToUpdate   .fuelType
         }
-    }, [carToUpdate]);
+        );
 
-    const validateForm = () => {
-        let newErrors = {};
-        if (!car.make.trim()) newErrors.make = "Make is required.";
-        if (!car.model.trim()) newErrors.model = "Model is required.";
-        if (!car.year || car.year < 1886 || car.year > new Date().getFullYear()) 
-            newErrors.year = "Enter a valid year.";
-        if (!car.price || car.price <= 0) newErrors.price = "Enter a valid price.";
-        if (!car.description.trim()) newErrors.description = "Description is required.";
-        if (!car.img) newErrors.img = "Image is required.";
+        const [errors, setErrors] = useState({});
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0; // Returns true if no errors
-    };
-
-    const handleChange = (e) => {
-        setCar({ ...car, [e.target.name]: e.target.value });
-        setErrors({ ...errors, [e.target.name]: "" }); // Clear errors on change
-    };
-
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validate file type
-            const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-            if (!allowedTypes.includes(file.type)) {
-                setErrors({ ...errors, img: "Only JPG and PNG files are allowed." });
-                return;
+        useEffect(() => {
+            if (carToUpdate) {
+                // Pre-fill the form fields with the existing car data
+                setCar(carToUpdate);
             }
+        }, [carToUpdate]);
 
-            // Validate file size (max 2MB)
-            const maxSize = 2 * 1024 * 1024;
-            if (file.size > maxSize) {
-                setErrors({ ...errors, img: "Image size must be less than 2MB." });
-                return;
+        const validateForm = () => {
+            let newErrors = {};
+            if (!car.make.trim()) newErrors.make = "Make is required.";
+            if (!car.model.trim()) newErrors.model = "Model is required.";
+            if (!car.year || car.year < 1886 || car.year > new Date().getFullYear()) 
+                newErrors.year = "Enter a valid year.";
+            if (!car.price || car.price <= 0) newErrors.price = "Enter a valid price.";
+            if (!car.description.trim()) newErrors.description = "Description is required.";
+            if (!car.img) newErrors.img = "Image is required.";
+
+            setErrors(newErrors);
+            return Object.keys(newErrors).length === 0; // Returns true if no errors
+        };
+
+        const handleChange = (e) => {
+            setCar({ ...car, [e.target.name]: e.target.value });
+            setErrors({ ...errors, [e.target.name]: "" }); // Clear errors on change
+        };
+
+        const handleImageUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file type
+                const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+                if (!allowedTypes.includes(file.type)) {
+                    setErrors({ ...errors, img: "Only JPG and PNG files are allowed." });
+                    return;
+                }
+
+                // Validate file size (max 2MB)
+                const maxSize = 2 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    setErrors({ ...errors, img: "Image size must be less than 2MB." });
+                    return;
+                }
+
+                const imageUrl = `/${file.name}`; // Assuming images are stored in the public folder
+                setCar({ ...car, img: imageUrl });
+                setErrors({ ...errors, img: "" }); // Clear image errors
             }
+        };
 
-            const imageUrl = `/${file.name}`; // Assuming images are stored in the public folder
-            setCar({ ...car, img: imageUrl });
-            setErrors({ ...errors, img: "" }); // Clear image errors
+        const removeImage = () => {
+            setCar((prevCar) => ({ ...prevCar, img: "" }));
+            setErrors({ ...errors, img: "Image is required." });
+        };
+
+        const handleSubmit = () => {
+            if (validateForm()) {
+                // Update the car in the cars array
+                const updatedCars = cars.map(c => (c.id === car.id ? car : c));
+                setcars(updatedCars);  // Update the cars state with the modified car
+                alert("Car updated successfully!");
+                navigate('/'); // Redirect to home or car list page
+            }
+        };
+
+        const handleCancel = () => {
+            navigate('/'); // Cancel the update and go back to the home page
+        };
+
+        if (!carToUpdate) {
+            return <p>Car not found</p>; // If car doesn't exist, show this message
         }
-    };
 
-    const removeImage = () => {
-        setCar((prevCar) => ({ ...prevCar, img: "" }));
-        setErrors({ ...errors, img: "Image is required." });
-    };
+        return (
+            <div className="add-car-container">
+                <h2>Update Car Details</h2>
+                <div className="input-group">
+                    <input
+                        type="text"
+                        name="make"
+                        placeholder="Make"
+                        value={car.make}
+                        onChange={handleChange}
+                    />
+                    {errors.make && <p className="error">{errors.make}</p>}
 
-    const handleSubmit = () => {
-        if (validateForm()) {
-            // Update the car in the cars array
-            const updatedCars = cars.map(c => (c.id === car.id ? car : c));
-            setcars(updatedCars);  // Update the cars state with the modified car
-            alert("Car updated successfully!");
-            navigate('/'); // Redirect to home or car list page
-        }
-    };
+                    <input
+                        type="text"
+                        name="model"
+                        placeholder="Model"
+                        value={car.model}
+                        onChange={handleChange}
+                    />
+                    {errors.model && <p className="error">{errors.model}</p>}
 
-    const handleCancel = () => {
-        navigate('/'); // Cancel the update and go back to the home page
-    };
+                    <input
+                        type="number"
+                        name="year"
+                        placeholder="Year"
+                        value={car.year}
+                        onChange={handleChange}
+                    />
+                    {errors.year && <p className="error">{errors.year}</p>}
 
-    if (!carToUpdate) {
-        return <p>Car not found</p>; // If car doesn't exist, show this message
-    }
+                    <select name="fuelType" value={car.fuelType} onChange={handleChange}>
+                        <option value="">Select Fuel Type</option>
+                        <option value="Diesel">Diesel</option>
+                        <option value="Gas">Gas</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="Electric">Electric</option>
+                    </select>
 
-    return (
-        <div className="add-car-container">
-            <h2>Update Car Details</h2>
-            <div className="input-group">
-                <input
-                    type="text"
-                    name="make"
-                    placeholder="Make"
-                    value={car.make}
+                    <input
+                        type="text"
+                        name="keywords"
+                        placeholder="Keywords"
+                        value={car.keywords}
+                        onChange={handleChange}
+                    />
+
+                    <input
+                        type="number"
+                        name="price"
+                        placeholder="Price"
+                        value={car.price}
+                        onChange={handleChange}
+                    />
+                    {errors.price && <p className="error">{errors.price}</p>}
+                </div>
+
+                <div className="image-preview">
+                    {car.img ? (
+                        <>
+                            <img src={car.img} alt="Uploaded Car" />
+                            <button className="remove-image" onClick={removeImage}>Remove Image</button>
+                        </>
+                    ) : (
+                        <>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} />
+                            {errors.img && <p className="error">{errors.img}</p>}
+                        </>
+                    )}
+                </div>
+
+                <textarea
+                    name="description"
+                    placeholder="Enter description..."
+                    value={car.description}
                     onChange={handleChange}
-                />
-                {errors.make && <p className="error">{errors.make}</p>}
+                ></textarea>
+                {errors.description && <p className="error">{errors.description}</p>}
 
-                <input
-                    type="text"
-                    name="model"
-                    placeholder="Model"
-                    value={car.model}
-                    onChange={handleChange}
-                />
-                {errors.model && <p className="error">{errors.model}</p>}
-
-                <input
-                    type="number"
-                    name="year"
-                    placeholder="Year"
-                    value={car.year}
-                    onChange={handleChange}
-                />
-                {errors.year && <p className="error">{errors.year}</p>}
-
-                <select name="fuelType" value={car.fuelType} onChange={handleChange}>
-                    <option value="">Select Fuel Type</option>
-                    <option value="Diesel">Diesel</option>
-                    <option value="Gas">Gas</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="Electric">Electric</option>
-                </select>
-
-                <input
-                    type="text"
-                    name="keywords"
-                    placeholder="Keywords"
-                    value={car.keywords}
-                    onChange={handleChange}
-                />
-
-                <input
-                    type="number"
-                    name="price"
-                    placeholder="Price"
-                    value={car.price}
-                    onChange={handleChange}
-                />
-                {errors.price && <p className="error">{errors.price}</p>}
+                <div className="button-group">
+                    <button className="add-car" onClick={handleSubmit}>Update Car</button>
+                    <button className="cancel" onClick={handleCancel}>Cancel</button>
+                </div>
             </div>
+        );
+    };
 
-            <div className="image-preview">
-                {car.img ? (
-                    <>
-                        <img src={car.img} alt="Uploaded Car" />
-                        <button className="remove-image" onClick={removeImage}>Remove Image</button>
-                    </>
-                ) : (
-                    <>
-                        <input type="file" accept="image/*" onChange={handleImageUpload} />
-                        {errors.img && <p className="error">{errors.img}</p>}
-                    </>
-                )}
-            </div>
-
-            <textarea
-                name="description"
-                placeholder="Enter description..."
-                value={car.description}
-                onChange={handleChange}
-            ></textarea>
-            {errors.description && <p className="error">{errors.description}</p>}
-
-            <div className="button-group">
-                <button className="add-car" onClick={handleSubmit}>Update Car</button>
-                <button className="cancel" onClick={handleCancel}>Cancel</button>
-            </div>
-        </div>
-    );
-};
-
-export default UpdateCar;
+    export default UpdateCar;

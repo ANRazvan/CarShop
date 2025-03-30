@@ -25,7 +25,7 @@ const Charts = ({ cars, setCars }) => {
           id: newCarId,
           make: faker.vehicle.manufacturer(),
           model: faker.vehicle.model(),
-          year: faker.date.past(10).getFullYear(),
+          year: faker.date.past(70, new Date('2030')).getFullYear(), // Generate realistic years
           keywords: faker.vehicle.type(),
           description: faker.lorem.sentence(),
           fuelType: faker.vehicle.fuel(),
@@ -44,7 +44,7 @@ const Charts = ({ cars, setCars }) => {
         }, {});
 
         const newLineData = prices.slice(-7); // Last 7 prices
-        const newBarData = years.slice(-5); // Last 5 years
+        const newBarData = calculateYearIntervals(years, 5); // Group years into 5-year intervals
         const newPieData = Object.values(fuelTypes);
 
         setLineData(newLineData);
@@ -60,6 +60,21 @@ const Charts = ({ cars, setCars }) => {
     setIsGenerating(!isGenerating);
   };
 
+  // Function to calculate year intervals
+  const calculateYearIntervals = (years, intervalSize) => {
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+    const intervals = [];
+
+    for (let start = Math.floor(minYear / intervalSize) * intervalSize; start <= maxYear; start += intervalSize) {
+      const end = start + intervalSize - 1;
+      const count = years.filter(year => year >= start && year <= end).length;
+      intervals.push({ range: `${start}-${end}`, count });
+    }
+
+    return intervals;
+  };
+
   const lineChartData = {
     labels: ['1', '2', '3', '4', '5', '6', '7'],
     datasets: [
@@ -73,11 +88,11 @@ const Charts = ({ cars, setCars }) => {
   };
 
   const barChartData = {
-    labels: ['1', '2', '3', '4', '5'],
+    labels: barData.map(interval => interval.range), // Use year intervals as labels
     datasets: [
       {
         label: 'Car Years',
-        data: barData,
+        data: barData.map(interval => interval.count), // Use counts for each interval
         backgroundColor: 'rgba(153, 102, 255, 0.2)',
         borderColor: 'rgba(153, 102, 255, 1)',
         borderWidth: 1,
@@ -94,8 +109,18 @@ const Charts = ({ cars, setCars }) => {
       {
         label: 'Fuel Types',
         data: pieData,
-        backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 206, 86, 0.2)'],
-        borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)'],
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.2)', // Red
+          'rgba(54, 162, 235, 0.2)', // Blue
+          'rgba(255, 206, 86, 0.2)', // Yellow
+          'rgba(75, 192, 192, 0.2)', // Green
+        ],
+        borderColor: [
+          'rgba(255, 99, 132, 1)', // Red
+          'rgba(54, 162, 235, 1)', // Blue
+          'rgba(255, 206, 86, 1)', // Yellow
+          'rgba(75, 192, 192, 1)', // Green
+        ],
         borderWidth: 1,
       },
     ],

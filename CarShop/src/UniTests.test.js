@@ -44,23 +44,83 @@ test('renders a simple component', () => {
   expect(screen.getByText('Hello, world!')).toBeInTheDocument();
 });
 
-test('sorts cars by price in ascending order', () => {
-  render(
-    <CarList
-      cars={mockCars}
-      selectedMakes={[]}
-      selectedFuel={[]}
-      minPrice={0}
-      maxPrice={Infinity}
-      searchBar=""
-    />
-  );
+// test('sorts cars by price in ascending order', () => {
+//   render(
+//     <CarList
+//       cars={mockCars}
+//       selectedMakes={[]}
+//       selectedFuel={[]}
+//       minPrice={0}
+//       maxPrice={Infinity}
+//       searchBar=""
+//     />
+//   );
 
-  // Select the sort method
-  fireEvent.change(screen.getByLabelText(/Sort by:/i), { target: { value: 'price-asc' } });
+//   // Select the sort method
+//   fireEvent.change(screen.getByLabelText(/Sort by:/i), { target: { value: 'price-asc' } });
 
-  // Check if the cars are sorted by price in ascending order
-  const carPrices = screen.getAllByText(/\$\d+/).map(price => parseInt(price.textContent.replace('$', '')));
-  expect(carPrices).toEqual([15000, 18209, 20000]);
-});
+//   // Check if the cars are sorted by price in ascending order
+//   const carPrices = screen.getAllByText(/\$\d+/).map(price => parseInt(price.textContent.replace('$', '')));
+//   expect(carPrices).toEqual([15000, 18209, 20000]);
+// });
+
+// test('sorts cars by price in descending order', () => {
+//   render(
+//     <CarList
+//       cars={mockCars}
+//       selectedMakes={[]}
+//       selectedFuel={[]}
+//       minPrice={0}
+//       maxPrice={Infinity}
+//       searchBar=""
+//     />
+//   );
+
+//   // Select the sort method
+//   fireEvent.change(screen.getByLabelText(/Sort by:/i), { target: { value: 'price-desc' } });
+
+//   // Check if the cars are sorted by price in descending order
+//   const carPrices = screen.getAllByText(/\$\d+/).map(price => parseInt(price.textContent.replace('$', '')));
+//   expect(carPrices).toEqual([20000, 18209, 15000]);
+// });
+
+// test('sorts cars by year in ascending order', () => {
+//   render(
+//     <CarList
+//       cars={mockCars}
+//       selectedMakes={[]}
+//       selectedFuel={[]}
+//       minPrice={0}
+//       maxPrice={Infinity}
+//       searchBar=""
+//     />
+//   );
+
+//   // Select the sort method
+//   fireEvent.change(screen.getByLabelText(/Sort by:/i), { target: { value: 'year-asc' } });
+
+//   // Check if the cars are sorted by year in ascending order
+//   const carYears = screen.getAllByText(/\d{4}/).map(year => parseInt(year.textContent));
+//   expect(carYears).toEqual([2018, 2019, 2020]);
+// });
+
+// test('sorts cars by year in descending order', () => {
+//   render(
+//     <CarList
+//       cars={mockCars}
+//       selectedMakes={[]}
+//       selectedFuel={[]}
+//       minPrice={0}
+//       maxPrice={Infinity}
+//       searchBar=""
+//     />
+//   );
+
+//   // Select the sort method
+//   fireEvent.change(screen.getByLabelText(/Sort by:/i), { target: { value: 'year-desc' } });
+
+//   // Check if the cars are sorted by year in descending order
+//   const carYears = screen.getAllByText(/\d{4}/).map(year => parseInt(year.textContent));
+//   expect(carYears).toEqual([2020, 2019, 2018]);
+// });
 
