@@ -4,8 +4,8 @@ import Sidebar from "./Sidebar.jsx";
 import CarList from "./CarList.jsx";
 import Cover from "./Cover.jsx";
 import "./CarShop.css";
-import axios from "axios";
 import { useSearchParams } from "react-router-dom";
+import carService from "./services/CarService";
 
 // Utility function for debouncing
 const useDebounce = (value, delay) => {
@@ -47,7 +47,7 @@ const CarShop = () => {
     const [sortMethod, setSortMethod] = useState('');
 
     // Memoize fetchCars to prevent unnecessary re-creation
-    const fetchCars = useCallback(() => {
+    const fetchCars = useCallback(async () => {
         setLoading(true);
         
         const params = new URLSearchParams();
@@ -84,16 +84,15 @@ const CarShop = () => {
         // Update URL parameters silently (replace: true prevents adding history entries)
         setSearchParams(params, { replace: true });
         
-        axios.get(`http://localhost:5000/api/cars?${params.toString()}`)
-            .then((response) => {
-                setCars(response.data.cars || []);
-                setTotalPages(response.data.totalPages || 1);
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching cars:", error);
-                setLoading(false);
-            });
+        try {
+            const data = await carService.getCars(Object.fromEntries(params));
+            setCars(data.cars || []);
+            setTotalPages(data.totalPages || 1);
+        } catch (error) {
+            console.error("Error fetching cars:", error);
+        } finally {
+            setLoading(false);
+        }
     }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams]);
 
     // Use the debounced filters in the effect dependency array

@@ -19,5 +19,10 @@ app.use("/api/cars", carRoutes);
 app.post("/api/cars", upload.single("img"), carRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Add a health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

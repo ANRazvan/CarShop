@@ -8,20 +8,24 @@ import AddCar from "./AddCar.jsx";
 import UpdateCar from './UpdateCar.jsx';
 import Charts from './Charts.jsx'; // Import the Charts component
 import './Charts.css'; // Import the Charts CSS
+import NetworkStatusBar from "./components/NetworkStatusBar.jsx";
 
 function App() {
 
   return(
     <Router>
+      <div className="App">
         <Navbar />
         <Routes>
             <Route path ="/" element={<CarShop />} /> {/* Pass cars and setCars to CarShop */}
             <Route path ="/CarDetail/:id" element={<CarDetail />} />
             <Route path="/AddCar" element={<AddCar />} />
             <Route path="/UpdateCar/:id" element={<UpdateCar />} />
+            <Route path="/charts" element={<Charts />} />
         </Routes>   
-        <Charts /> {/* Pass cars and setCars to Charts */}
+        <NetworkStatusBar />
         <Footer />
+      </div>
     </Router>
   );
 }

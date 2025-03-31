@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./AddCar.css";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import carService from "./services/CarService";
 
 const AddCar = ({ cars, setcars }) => {
     const [car, setCar] = useState({
@@ -64,30 +64,40 @@ const AddCar = ({ cars, setcars }) => {
         setErrors(prevErrors => ({ ...prevErrors, img: "Image is required." }));
     };
 
-    const handleSubmit = () => {
-        const formData = new FormData();
-        formData.append("make", car.make);
-        formData.append("model", car.model);
-        formData.append("year", car.year);
-        formData.append("keywords", car.keywords);
-        formData.append("description", car.description);
-        formData.append("fuelType", car.fuelType);
-        formData.append("price", car.price);
-        if (car.img) {
-            formData.append("img", car.img);
+    const handleSubmit = async () => {
+        if (!validateForm()) {
+            return;
         }
 
-        axios.post("http://localhost:5000/api/cars", formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        })
-            .then((response) => {
-                console.log("Car added successfully:", response.data);
-            })
-            .catch((error) => {
-                console.error("Error adding car:", error);
-            });
+        try {
+            // Use either FormData or regular object based on whether we have image file
+            let dataToSubmit;
+            
+            if (car.img instanceof File) {
+                // If we have a file, use FormData
+                const formData = new FormData();
+                formData.append("make", car.make);
+                formData.append("model", car.model);
+                formData.append("year", car.year);
+                formData.append("keywords", car.keywords || "");
+                formData.append("description", car.description);
+                formData.append("fuelType", car.fuelType || "");
+                formData.append("price", car.price);
+                formData.append("img", car.img);
+                dataToSubmit = formData;
+            } else {
+                // For offline storage or non-file cases
+                dataToSubmit = { ...car };
+            }
+
+            const response = await carService.createCar(dataToSubmit);
+            
+            alert("Car added successfully!");
+            navigate('/');
+        } catch (error) {
+            console.error("Error adding car:", error);
+            alert("Failed to add car, but your data has been saved locally and will sync when you're back online.");
+        }
     };
 
     const handleCancel = () => {

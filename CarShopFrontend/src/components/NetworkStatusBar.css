@@ -1,0 +1,64 @@
+.network-status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.network-status-bar.offline {
+  background-color: #ffecb5;
+  border-top-color: #ffc107;
+}
+
+.network-status-bar.server-down {
+  background-color: #f8d7da;
+  border-top-color: #dc3545;
+}
+
+.status-message {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.status-icon {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.sync-container {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.sync-button {
+  margin-left: 10px;
+  padding: 6px 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.3s;
+}
+
+.sync-button:hover:not(:disabled) {
+  background-color: #0069d9;
+}
+
+.sync-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
+}

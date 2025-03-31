@@ -1,42 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import carService from './services/CarService';
 import './CarDetail.css';
 
 const CarDetail = () => {
-    const { id } = useParams(); // Get car ID from URL
-    const navigate = useNavigate(); // Get navigate function
-    const [car, setCar] = useState(null); // State to store car details
-    const [loading, setLoading] = useState(true); // Loading state
-    const [error, setError] = useState(null); // Error state
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [car, setCar] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Fetch car details from the server
-        axios.get(`http://localhost:5000/api/cars/${id}`)
-            .then((response) => {
-                setCar(response.data);
+        // Fetch car details using our service
+        const fetchCar = async () => {
+            try {
+                const data = await carService.getCarById(id);
+                if (data) {
+                    setCar(data);
+                } else {
+                    setError("Car not found");
+                }
+            } catch (err) {
+                console.error("Error fetching car details:", err);
+                setError("Error loading car details");
+            } finally {
                 setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching car details:", error);
-                setError("Car not found");
-                setLoading(false);
-            });
+            }
+        };
+        
+        fetchCar();
     }, [id]);
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         const confirmDelete = window.confirm("Are you sure you want to delete this car?");
         if (confirmDelete) {
-            axios.delete(`http://localhost:5000/api/cars/${id}`)
-                .then(() => {
-                    // No need to update local state, just redirect
-                    alert("Car deleted successfully!");
-                    navigate('/'); // Redirect to the home page
-                })
-                .catch((error) => {
-                    console.error("Error deleting car:", error);
-                    alert("Failed to delete car.");
-                });
+            try {
+                await carService.deleteCar(id);
+                alert("Car deleted successfully!");
+                navigate('/');
+            } catch (error) {
+                console.error("Error deleting car:", error);
+                alert("Car will be deleted when back online");
+                navigate('/');
+            }
         }
     };
 

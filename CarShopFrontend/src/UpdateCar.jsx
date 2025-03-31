@@ -1,29 +1,36 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import carService from "./services/CarService";
 import "./AddCar.css";
 
 const UpdateCar = () => {
-    const { id } = useParams(); // Get the car ID from the URL
-    const navigate = useNavigate(); // Get navigate function
+    const { id } = useParams();
+    const navigate = useNavigate();
 
-    const [car, setCar] = useState(null); // State to store car details
-    const [errors, setErrors] = useState({}); // State for error messages
-    const [loading, setLoading] = useState(true); // Loading state
-    const [error, setError] = useState(null); // Error state
+    const [car, setCar] = useState(null);
+    const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Fetch car details from the server
-        axios.get(`http://localhost:5000/api/cars/${id}`)
-            .then((response) => {
-                setCar(response.data); // Set the car data
+        // Fetch car details using our service
+        const fetchCar = async () => {
+            try {
+                const data = await carService.getCarById(id);
+                if (data) {
+                    setCar(data);
+                } else {
+                    setError("Car not found");
+                }
+            } catch (err) {
+                console.error("Error fetching car details:", err);
+                setError("Error loading car details");
+            } finally {
                 setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching car details:", error);
-                setError("Car not found");
-                setLoading(false);
-            });
+            }
+        };
+
+        fetchCar();
     }, [id]);
 
     const validateForm = () => {
@@ -37,34 +44,32 @@ const UpdateCar = () => {
         if (!car.img) newErrors.img = "Image is required.";
 
         setErrors(newErrors);
-        return Object.keys(newErrors).length === 0; // Returns true if no errors
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleChange = (e) => {
         setCar({ ...car, [e.target.name]: e.target.value });
-        setErrors({ ...errors, [e.target.name]: "" }); // Clear errors on change
+        setErrors({ ...errors, [e.target.name]: "" });
     };
 
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Validate file type
             const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
             if (!allowedTypes.includes(file.type)) {
                 setErrors({ ...errors, img: "Only JPG and PNG files are allowed." });
                 return;
             }
 
-            // Validate file size (max 2MB)
             const maxSize = 2 * 1024 * 1024;
             if (file.size > maxSize) {
                 setErrors({ ...errors, img: "Image size must be less than 2MB." });
                 return;
             }
 
-            const imageUrl = URL.createObjectURL(file); // Temporary URL for preview
+            const imageUrl = URL.createObjectURL(file);
             setCar({ ...car, img: imageUrl });
-            setErrors({ ...errors, img: "" }); // Clear image errors
+            setErrors({ ...errors, img: "" });
         }
     };
 
@@ -73,22 +78,24 @@ const UpdateCar = () => {
         setErrors({ ...errors, img: "Image is required." });
     };
 
-    const handleSubmit = () => {
-        if (validateForm()) {
-            axios.put(`http://localhost:5000/api/cars/${id}`, car)
-                .then((response) => {
-                    alert("Car updated successfully!");
-                    navigate('/'); // Redirect to the home page
-                })
-                .catch((error) => {
-                    console.error("Error updating car:", error);
-                    alert("Failed to update car.");
-                });
+    const handleSubmit = async () => {
+        if (!validateForm()) {
+            return;
+        }
+
+        try {
+            await carService.updateCar(id, car);
+            alert("Car updated successfully!");
+            navigate('/');
+        } catch (error) {
+            console.error("Error updating car:", error);
+            alert("Update saved locally and will sync when you're back online.");
+            navigate('/');
         }
     };
 
     const handleCancel = () => {
-        navigate('/'); // Cancel the update and go back to the home page
+        navigate('/');
     };
 
     if (loading) return <p>Loading...</p>;
