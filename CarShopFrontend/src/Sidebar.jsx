@@ -4,7 +4,7 @@ import './Sidebar.css';
 import { Link } from "react-router-dom";
 import axios from 'axios';
 
-const Sidebar = ({ filters, onFilterChange }) => {
+const Sidebar = ({ filters, onFilterChange, disabled }) => {
     // Available makes from the server
     const [makes, setMakes] = useState([]);
     
@@ -48,45 +48,60 @@ const Sidebar = ({ filters, onFilterChange }) => {
     };
 
     return (
-        <div className="sidebar">
-            <Link to="/AddCar">
-                <button className="add-car">Add new car</button>
+        <div className="sidebar-container">
+            {/* Always-enabled Add Car button */}
+            <Link to="/AddCar" className="add-car-link">
+                <button className="add-car always-enabled">Add new car</button>
             </Link>
-            <input 
-                className="search" 
-                type="text" 
-                placeholder="Search" 
-                value={filters.searchTerm}
-                onChange={handleSearchChange}
-            />
-            <CheckboxList
-                title="Make"
-                items={makes}
-                selectedItems={filters.makes}
-                onChange={handleMakeChange}
-            />
-            <CheckboxList
-                title="Fuel Type"
-                items={["Diesel", "Gasoline", "Hybrid", "Electric"]}
-                selectedItems={filters.fuelTypes}
-                onChange={handleFuelTypeChange}
-            />
-            <h4>Price Interval</h4>
-            <div className="MinMaxPrice">
-                <input
-                    className="priceInterval"
-                    type="number"
-                    placeholder="Min price"
-                    value={filters.minPrice}
-                    onChange={handleMinPriceChange}
+            
+            <div className={`sidebar-filters ${disabled ? 'disabled' : ''}`}>
+                <input 
+                    className="search" 
+                    type="text" 
+                    placeholder="Search" 
+                    value={filters.searchTerm}
+                    onChange={handleSearchChange}
+                    disabled={disabled}
                 />
-                <input
-                    className="priceInterval"
-                    type="number"
-                    placeholder="Max price"
-                    value={filters.maxPrice}
-                    onChange={handleMaxPriceChange}
+                <CheckboxList
+                    title="Make"
+                    items={makes}
+                    selectedItems={filters.makes}
+                    onChange={handleMakeChange}
+                    disabled={disabled}
                 />
+                <CheckboxList
+                    title="Fuel Type"
+                    items={["Diesel", "Gasoline", "Hybrid", "Electric"]}
+                    selectedItems={filters.fuelTypes}
+                    onChange={handleFuelTypeChange}
+                    disabled={disabled}
+                />
+                <h4>Price Interval</h4>
+                <div className="MinMaxPrice">
+                    <input
+                        className="priceInterval"
+                        type="number"
+                        placeholder="Min price"
+                        value={filters.minPrice}
+                        onChange={handleMinPriceChange}
+                        disabled={disabled}
+                    />
+                    <input
+                        className="priceInterval"
+                        type="number"
+                        placeholder="Max price"
+                        value={filters.maxPrice}
+                        onChange={handleMaxPriceChange}
+                        disabled={disabled}
+                    />
+                </div>
+                
+                {disabled && (
+                    <div className="offline-filters-message">
+                        Filtering is limited in offline mode
+                    </div>
+                )}
             </div>
         </div>
     );

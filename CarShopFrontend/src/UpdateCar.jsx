@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import "./AddCar.css";
+import CarOperationsContext from './CarOperationsContext.jsx';
 
 const UpdateCar = () => {
     const { id } = useParams(); // Get the car ID from the URL
     const navigate = useNavigate(); // Get navigate function
+    const { updateCar } = useContext(CarOperationsContext);
 
     const [car, setCar] = useState(null); // State to store car details
     const [errors, setErrors] = useState({}); // State for error messages
@@ -75,15 +77,28 @@ const UpdateCar = () => {
 
     const handleSubmit = () => {
         if (validateForm()) {
-            axios.put(`http://localhost:5000/api/cars/${id}`, car)
-                .then((response) => {
-                    alert("Car updated successfully!");
-                    navigate('/'); // Redirect to the home page
-                })
-                .catch((error) => {
-                    console.error("Error updating car:", error);
-                    alert("Failed to update car.");
-                });
+            // Use updateCar from context if available, otherwise fall back to direct axios call
+            if (updateCar) {
+                updateCar(id, car)
+                    .then((response) => {
+                        alert("Car updated successfully!");
+                        navigate('/'); // Redirect to the home page
+                    })
+                    .catch((error) => {
+                        console.error("Error updating car:", error);
+                        alert("Failed to update car.");
+                    });
+            } else {
+                axios.put(`http://localhost:5000/api/cars/${id}`, car)
+                    .then((response) => {
+                        alert("Car updated successfully!");
+                        navigate('/'); // Redirect to the home page
+                    })
+                    .catch((error) => {
+                        console.error("Error updating car:", error);
+                        alert("Failed to update car.");
+                    });
+            }
         }
     };
 
@@ -128,7 +143,7 @@ const UpdateCar = () => {
                 <select name="fuelType" value={car.fuelType} onChange={handleChange}>
                     <option value="">Select Fuel Type</option>
                     <option value="Diesel">Diesel</option>
-                    <option value="Gas">Gas</option>
+                    <option value="Gasoline">Gasoline</option>
                     <option value="Hybrid">Hybrid</option>
                     <option value="Electric">Electric</option>
                 </select>

@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import "./AddCar.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import CarOperationsContext from './CarOperationsContext';
 
-const AddCar = ({ cars, setcars }) => {
+const AddCar = () => {
+    const { createCar } = useContext(CarOperationsContext);
     const [car, setCar] = useState({
         make: "",
         model: "",
@@ -65,6 +67,11 @@ const AddCar = ({ cars, setcars }) => {
     };
 
     const handleSubmit = () => {
+        // Validate the form first
+        if (!validateForm()) {
+            return; // Don't proceed if validation fails
+        }
+        
         const formData = new FormData();
         formData.append("make", car.make);
         formData.append("model", car.model);
@@ -73,21 +80,55 @@ const AddCar = ({ cars, setcars }) => {
         formData.append("description", car.description);
         formData.append("fuelType", car.fuelType);
         formData.append("price", car.price);
+        
+        let imgFile = null;
         if (car.img) {
-            formData.append("img", car.img);
+            // Store the actual file for offline use
+            imgFile = car.img;
+            formData.append("image", car.img);
         }
 
-        axios.post("http://localhost:5000/api/cars", formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        })
+        // Check if we're online and server is available
+        const isOnline = navigator.onLine;
+        // We'll need to check server availability or pass it as a prop
+        
+        // Use createCar from context
+        if (createCar) {
+            createCar(formData, {
+                make: car.make,
+                model: car.model,
+                year: car.year,
+                keywords: car.keywords,
+                description: car.description,
+                fuelType: car.fuelType,
+                price: car.price,
+                img: imgFile, // Store actual file or image data
+                _isTemp: !isOnline, // Mark as temporary if offline
+            })
             .then((response) => {
                 console.log("Car added successfully:", response.data);
+                navigate('/'); // Redirect to home page after successful addition
             })
             .catch((error) => {
                 console.error("Error adding car:", error);
+                setErrors(prev => ({ ...prev, submit: "Failed to add car. Please try again." }));
             });
+        } else {
+            // Fallback if context function not available
+            axios.post("http://localhost:5000/api/cars", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            })
+            .then((response) => {
+                console.log("Car added successfully:", response.data);
+                navigate('/'); // Redirect to home page after successful addition
+            })
+            .catch((error) => {
+                console.error("Error adding car:", error);
+                setErrors(prev => ({ ...prev, submit: "Failed to add car. Please try again." }));
+            });
+        }
     };
 
     const handleCancel = () => {
@@ -114,9 +155,9 @@ const AddCar = ({ cars, setcars }) => {
 
                 <select name="fuelType" value={car.fuelType} onChange={handleChange}>
                     <option value="">Select Fuel Type</option>
-                    <option value="Gas">Gas</option>
-                    <option value="Hybrid">Hybrid</option>
                     <option value="Diesel">Diesel</option>
+                    <option value="Gasoline">Gasoline</option>
+                    <option value="Hybrid">Hybrid</option>
                     <option value="Electric">Electric</option>
                 </select>
             </div>
@@ -142,6 +183,8 @@ const AddCar = ({ cars, setcars }) => {
                 onChange={handleChange}
             ></textarea>
             {errors.description && <p className="error">{errors.description}</p>}
+
+            {errors.submit && <p className="error submit-error">{errors.submit}</p>}
 
             <div className="button-group">
                 <button className="add-car" onClick={handleSubmit}>Add Car</button>
