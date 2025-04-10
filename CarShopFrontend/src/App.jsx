@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import axios from "axios";
+import ReconnectingWebSocket from 'reconnecting-websocket';
 import Navbar from './Navbar.jsx'
 import Footer from './Footer.jsx'
 import CarShop from './CarShop.jsx'
@@ -32,6 +33,9 @@ function App() {
     const [cars, setCars] = useState([]);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [serverAvailable, setServerAvailable] = useState(true);
+    const websocket = useRef(null);
+    const [lastWebSocketMessage, setLastWebSocketMessage] = useState(null);
+    const [wsConnectionStatus, setWsConnectionStatus] = useState('disconnected');
     
     // Check if server is available
     const checkServerAvailability = useCallback(() => {
@@ -50,9 +54,21 @@ function App() {
         const handleOnline = () => {
             setIsOnline(true);
             checkServerAvailability();
+            
+            // Reconnect WebSocket when coming online
+            if (websocket.current?.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+            }
         };
 
-        const handleOffline = () => setIsOnline(false);
+        const handleOffline = () => {
+            setIsOnline(false);
+            
+            // Close WebSocket when going offline
+            if (websocket.current) {
+                websocket.current.close();
+            }
+        };
 
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
@@ -63,8 +79,114 @@ function App() {
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
+            
+            // Close WebSocket connection on component unmount
+            if (websocket.current) {
+                websocket.current.close();
+            }
         };
     }, [checkServerAvailability]);
+    
+    // WebSocket Connection
+    const connectWebSocket = useCallback(() => {
+        if (!isOnline || !serverAvailable) return;
+        
+        console.log("Establishing WebSocket connection...");
+        setWsConnectionStatus('connecting');
+        
+        // Close existing connection if any
+        if (websocket.current) {
+            websocket.current.close();
+        }
+        
+        try {
+            // Create new WebSocket connection with ReconnectingWebSocket directly
+            // Skip the test socket - it might be causing issues
+            const wsOptions = {
+                connectionTimeout: 3000,
+                maxRetries: 5,
+                maxReconnectionDelay: 10000,
+                minReconnectionDelay: 1000,
+                reconnectionDelayGrowFactor: 1.3,
+                debug: true
+            };
+            
+            const wsUrl = 'ws://localhost:5000/ws';
+            console.log(`Connecting to WebSocket at ${wsUrl}`);
+            
+            websocket.current = new ReconnectingWebSocket(wsUrl, [], wsOptions);
+            
+            websocket.current.onopen = () => {
+                console.log("WebSocket connection established");
+                setWsConnectionStatus('connected');
+            };
+            
+            websocket.current.onclose = (event) => {
+                console.log("WebSocket connection closed", event);
+                setWsConnectionStatus('disconnected');
+            };
+            
+            websocket.current.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                setWsConnectionStatus('error');
+            };
+            
+            // Set up ping interval
+            const pingInterval = setInterval(() => {
+                if (websocket.current && websocket.current.readyState === 1) {
+                    try {
+                        websocket.current.send(JSON.stringify({ type: 'PING', timestamp: Date.now() }));
+                    } catch (err) {
+                        console.error("Error sending ping:", err);
+                    }
+                }
+            }, 25000);
+            
+            websocket.current.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log("WebSocket message received:", message);
+                    
+                    // Handle ping from server
+                    if (message.type === 'PING') {
+                        websocket.current.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+                        return; // Don't process pings further
+                    }
+                    
+                    setLastWebSocketMessage(message);
+                } catch (error) {
+                    console.error("Error parsing WebSocket message:", error);
+                }
+            };
+            
+            return pingInterval;
+        } catch (error) {
+            console.error("Error setting up WebSocket:", error);
+            setWsConnectionStatus('error');
+            return null;
+        }
+    }, [isOnline, serverAvailable]);
+    
+    // Connect WebSocket when component mounts and when online status changes
+    useEffect(() => {
+        let pingInterval;
+        
+        if (isOnline && serverAvailable) {
+            const cleanup = connectWebSocket();
+            if (typeof cleanup === 'function') {
+                pingInterval = cleanup;
+            }
+        }
+        
+        return () => {
+            if (websocket.current) {
+                websocket.current.close();
+            }
+            if (pingInterval) {
+                clearInterval(pingInterval);
+            }
+        };
+    }, [isOnline, serverAvailable, connectWebSocket]);
     
     // Helper function for offline deletion
     const handleOfflineDeletion = useCallback((id) => {
@@ -215,25 +337,29 @@ function App() {
         // Implementation would go here - simplified for now
     }, []);
 
-    // Create the context value
+    // Create the context value with WebSocket info
     const carOperations = useMemo(() => ({
         createCar,
         updateCar,
         deleteCar,
-        fetchCars
-    }), [createCar, updateCar, deleteCar, fetchCars]);
+        fetchCars,
+        websocket: websocket.current,
+        lastWebSocketMessage,
+        wsConnectionStatus
+    }), [createCar, updateCar, deleteCar, fetchCars, lastWebSocketMessage, wsConnectionStatus]);
     
     console.log('App: Context operations defined:', {
         createCar: typeof createCar === 'function',
         updateCar: typeof updateCar === 'function',
         deleteCar: typeof deleteCar === 'function',
-        fetchCars: typeof fetchCars === 'function'
+        fetchCars: typeof fetchCars === 'function',
+        websocketConnected: websocket.current?.readyState === WebSocket.OPEN
     });
 
     return (
         <CarOperationsContext.Provider value={carOperations}>
             <Router>
-                <Navbar />
+                <Navbar wsStatus={wsConnectionStatus} />
                 <Routes>
                     <Route path="/" element={<CarShop />} />
                     <Route path="/CarDetail/:id" element={<CarDetail />} />

@@ -1,17 +1,39 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import "./Navbar.css";
-import {Link} from "react-router-dom";
-function Navbar(){
-    return(
+
+const Navbar = ({ wsStatus = 'disconnected' }) => {
+    const getStatusText = (status) => {
+        switch (status) {
+            case 'connected': return 'Live updates active';
+            case 'disconnected': return 'Live updates offline';
+            case 'error': return 'Connection error';
+            case 'connecting': return 'Connecting...';
+            default: return 'Offline mode';
+        }
+    };
+
+    return (
         <nav className="navbar">
-            <h1>Car Shop</h1>
-            <div className="nav-links">
-                <Link to="/"> <button className="Button" >Browse cars</button> </Link>
-                <button>Cart</button>
-                <button className="sign-in">Sign in</button>
+            <div className="navbar-container">
+                <div className="nav-left">
+                    <Link to="/" className="navbar-logo">
+                        CarMarket
+                    </Link>
+                    <div className="websocket-status">
+                        <span className={`status-indicator ${wsStatus}`}></span>
+                        <span className="status-text">
+                            {getStatusText(wsStatus)}
+                        </span>
+                    </div>
+                </div>
+                <div className="nav-right">
+                    <Link to="/" className="nav-link">Home</Link>
+                    <Link to="/AddCar" className="nav-link">Add Car</Link>
+                </div>
             </div>
         </nav>
     );
-}
+};
 
-export default Navbar
+export default Navbar;

@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useEffect, useState } from "react";
 import "./CarList.css";
 import { Link } from "react-router-dom";
 import Statistics from "./Statistics.jsx";
@@ -20,6 +20,36 @@ const CarListComponent = ({
     deleteCar,
     disableSortAndFilter
 }) => {
+    // Add a local timeout for loading states
+    const [localLoadingTimeout, setLocalLoadingTimeout] = useState(null);
+    
+    // Setup a fail-safe for loading state
+    useEffect(() => {
+        if (loading) {
+            const timeout = setTimeout(() => {
+                console.log("CarList: Local loading timeout triggered");
+                // We don't modify the parent's loading state directly 
+                // but we can render our own loading-free UI
+                setLocalLoadingTimeout(true);
+            }, 8000);
+            
+            return () => clearTimeout(timeout);
+        } else {
+            setLocalLoadingTimeout(false);
+        }
+    }, [loading]);
+    
+    // Add debugging for props
+    useEffect(() => {
+        console.log("CarList rendered with:", { 
+            carsCount: cars?.length, 
+            loading, 
+            currentPage, 
+            totalPages,
+            isOffline
+        });
+    }, [cars, loading, currentPage, totalPages, isOffline]);
+
     const handleItemsPerPageChange = (event) => {
         const newItemsPerPage = parseInt(event.target.value);
         setItemsPerPage(newItemsPerPage);
@@ -50,6 +80,11 @@ const CarListComponent = ({
         }
     };
 
+    // Check if cars is undefined or null and handle it
+    if (!cars) {
+        return <div className="car-list-error">Error: No cars data available</div>;
+    }
+
     return (
         <div>
             {isOffline && (
@@ -76,7 +111,7 @@ const CarListComponent = ({
                 <div className="sort-controls">
                     <select 
                         value={sortMethod} 
-                        onChange={(e) => setSortMethod(e.target.value)}
+                        onChange={handleSortMethodChange}
                         disabled={disableSortAndFilter}
                     >
                         <option value="">Sort by...</option>
@@ -95,10 +130,11 @@ const CarListComponent = ({
             </div>
 
             <div className="car-list">
-                {loading ? (
+                {(loading && !localLoadingTimeout) ? (
                     <div className="car-list-loading">
                         <div className="spinner"></div>
                         <p>Loading cars...</p>
+                        <p className="loading-details">Please wait while we retrieve the car data</p>
                     </div>
                 ) : cars.length === 0 ? (
                     <div className="centered-div">
@@ -116,6 +152,10 @@ const CarListComponent = ({
                                     src={`http://localhost:5000/uploads/${car.img}`}
                                     alt={car.model}
                                     loading="lazy"
+                                    onError={(e) => {
+                                        e.target.onerror = null; // Prevent infinite loop
+                                        e.target.src = '/placeholder.jpeg'; // Use local placeholder image
+                                    }}
                                 />
                                 <h3>{car.make}</h3>
                                 <h4>{car.model}</h4>

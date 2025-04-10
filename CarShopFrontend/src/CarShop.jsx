@@ -46,7 +46,7 @@ const addToOfflineQueue = (operation) => {
 
 const CarShop = () => {
     const carOperations = useContext(CarOperationsContext);
-    const { deleteCar, fetchCars: contextFetchCars } = carOperations;
+    const { deleteCar, fetchCars: contextFetchCars, lastWebSocketMessage } = carOperations;
 
     const [cars, setCars] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
@@ -59,6 +59,7 @@ const CarShop = () => {
         cars: [],
         lastSyncTimestamp: null
     });
+    const [realtimeUpdateReceived, setRealtimeUpdateReceived] = useState(false);
     
     // Consolidated filter state
     const [filters, setFilters] = useState({
@@ -97,7 +98,16 @@ const CarShop = () => {
 
     // Memoize fetchCars to prevent unnecessary re-creation
     const fetchCars = useCallback(() => {
+        console.log("Fetching cars with current page:", currentPage, "and items per page:", itemsPerPage);
         setLoading(true);
+        
+        // Safety timer to exit loading state even if request fails
+        const loadingTimeout = setTimeout(() => {
+            if (loading) {
+                console.log("Loading timeout reached - forcing exit from loading state");
+                setLoading(false);
+            }
+        }, 10000); // 10 seconds timeout
         
         const params = new URLSearchParams();
         
@@ -135,35 +145,47 @@ const CarShop = () => {
         
         if (!isOnline || !serverAvailable) {
             // Use cached data when offline - just display without filtering/sorting
+            console.log("Using cached data in offline mode");
             setLoading(false);
             const cachedData = localStorage.getItem('cachedCars');
             if (cachedData) {
-                const parsed = JSON.parse(cachedData);
-                
-                // Simple display of cached data without filtering/sorting
-                // Just use pagination for simplicity
-                const startIndex = 0;
-                const endIndex = parsed.cars.length;
-                const simpleCars = parsed.cars.slice(startIndex, endIndex);
-                
-                setCars(simpleCars);
-                setTotalPages(1); // No pagination in offline mode
+                try {
+                    const parsed = JSON.parse(cachedData);
+                    
+                    // Simple display of cached data without filtering/sorting
+                    // Just use pagination for simplicity
+                    const startIndex = 0;
+                    const endIndex = parsed.cars.length;
+                    const simpleCars = parsed.cars.slice(startIndex, endIndex);
+                    
+                    console.log(`Retrieved ${simpleCars.length} cars from cache`);
+                    setCars(simpleCars);
+                    setTotalPages(1); // No pagination in offline mode
+                } catch (error) {
+                    console.error("Error parsing cached data:", error);
+                    setCars([]);
+                    setTotalPages(1);
+                }
             } else {
+                console.log("No cached data available");
                 setCars([]);
                 setTotalPages(1);
             }
+            clearTimeout(loadingTimeout); // Clear the timeout when we're done
         } else {
             // Log the URL for debugging purposes
             console.log(`Fetching cars with params: ${params.toString()}`);
             
             axios.get(`http://localhost:5000/api/cars?${params.toString()}`)
                 .then((response) => {
+                    console.log("API response received:", response.data);
                     // Filter out any cars that are in the deletedCarsRegistry
                     const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
                     const filteredCars = (response.data.cars || []).filter(
                         car => !deletedCarsRegistry.includes(car.id.toString())
                     );
                     
+                    console.log(`Displaying ${filteredCars.length} cars after filtering`);
                     setCars(filteredCars);
                     setTotalPages(response.data.totalPages || 1);
                     setLoading(false);
@@ -173,16 +195,37 @@ const CarShop = () => {
                         cars: filteredCars,
                         timestamp: new Date().toISOString()
                     }));
+                    clearTimeout(loadingTimeout); // Clear the timeout when we're done
                 })
                 .catch((error) => {
                     console.error("Error fetching cars:", error);
+                    clearTimeout(loadingTimeout); // Clear the timeout when we're done
+                    
+                    // Try to use cached data as fallback
+                    const cachedData = localStorage.getItem('cachedCars');
+                    if (cachedData) {
+                        try {
+                            const parsed = JSON.parse(cachedData);
+                            console.log("Using cached data as fallback after fetch error");
+                            setCars(parsed.cars || []);
+                        } catch (parseError) {
+                            console.error("Error parsing cached data:", parseError);
+                            setCars([]);
+                        }
+                    } else {
+                        setCars([]);
+                    }
+                    
+                    setTotalPages(1);
                     setLoading(false);
                     
                     // Server might be down, mark it as unavailable
                     setServerAvailable(false);
                 });
         }
-    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable]);
+        
+        return () => clearTimeout(loadingTimeout); // Clean up the timeout if component unmounts during fetch
+    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable, loading]);
 
     // Function to filter out deleted cars from the current state or cache
     const filterOutDeletedCars = useCallback(() => {
@@ -375,27 +418,28 @@ const CarShop = () => {
 
     // Use the enhanced fetch function in place of the original where appropriate
     useEffect(() => {
-        refreshCars();
-        
-        // Set up a timer to periodically refresh cars and apply the deletion registry
-        const refreshInterval = setInterval(() => {
-            if (isOnline && serverAvailable) {
-                filterOutDeletedCars();
+        console.log("Running initial data fetch");
+
+        // Fetch cars only when dependencies change
+        fetchCars();
+
+        // Add a failsafe timeout to prevent infinite loading
+        const failsafeTimeout = setTimeout(() => {
+            if (loading) {
+                console.log("Failsafe: Forcing exit from loading state");
+                setLoading(false);
             }
-        }, 30000); // Every 30 seconds
-        
-        // Add periodic sync attempt if there are pending operations
-        const syncInterval = setInterval(() => {
-            if (isOnline && serverAvailable && getOfflineQueue().length > 0) {
-                syncOfflineChanges();
-            }
-        }, 60000); // Try every minute
-        
-        return () => {
-            clearInterval(refreshInterval);
-            clearInterval(syncInterval);
-        };
-    }, [refreshCars, filterOutDeletedCars, isOnline, serverAvailable, syncOfflineChanges]);
+        }, 10000); // 10 seconds timeout
+
+        return () => clearTimeout(failsafeTimeout); // Cleanup timeout
+    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, isOnline, serverAvailable]);
+
+    useEffect(() => {
+        console.log("Fetching cars with current filters:", debouncedFilters);
+
+        // Fetch cars only when debounced filters change
+        fetchCars();
+    }, [debouncedFilters, currentPage, itemsPerPage]);
 
     const handleFilterChange = (filterType, value) => {
         setFilters(prevFilters => ({
@@ -412,6 +456,35 @@ const CarShop = () => {
             fetchCars: typeof contextFetchCars === 'function'
         });
     }, [deleteCar, contextFetchCars]);
+
+    // Handle WebSocket messages - move this effect earlier and fix its behavior
+    useEffect(() => {
+        if (!lastWebSocketMessage) return;
+
+        const { type, data } = lastWebSocketMessage;
+
+        switch (type) {
+            case 'CAR_CREATED':
+                // Add the new car to the state without re-fetching
+                setCars(prevCars => [data, ...prevCars]);
+                break;
+
+            case 'CAR_UPDATED':
+                // Update the car in the state
+                setCars(prevCars =>
+                    prevCars.map(car => (car.id === data.id ? { ...car, ...data } : car))
+                );
+                break;
+
+            case 'CAR_DELETED':
+                // Remove the car from the state
+                setCars(prevCars => prevCars.filter(car => car.id !== data.id));
+                break;
+
+            default:
+                console.warn("Unknown WebSocket message type:", type);
+        }
+    }, [lastWebSocketMessage]);
 
     return (
         <div>
@@ -440,12 +513,21 @@ const CarShop = () => {
                             )}
                         </>
                     )}
-                    {syncStatus && (
-                        <div className="sync-status">
-                            {syncStatus}
-                        </div>
-                    )}
                 </div>
+                
+                {/* Real-time update notification */}
+                {realtimeUpdateReceived && (
+                    <div className="realtime-notification">
+                        Real-time update received! 
+                    </div>
+                )}
+                
+                {syncStatus && (
+                    <div className="sync-status">
+                        {syncStatus}
+                    </div>
+                )}
+                
                     <CarList 
                         cars={cars}
                         loading={loading}

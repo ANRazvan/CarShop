@@ -340,6 +340,9 @@ const createCar = (req, res) => {
   // Add to "database"
   carsData.cars.push(newCar);
   
+  // Broadcast event is now handled in the middleware layer in server.js
+  // This keeps the controller focused on data operations
+  
   res.status(201).json(newCar);
 };
 
@@ -378,6 +381,8 @@ const updateCar = (req, res) => {
     // Save updated car
     carsData.cars[carIndex] = updatedCar;
     
+    // Broadcast event is now handled in the middleware layer in server.js
+    
     res.json(updatedCar);
   } catch (error) {
     console.error('Error updating car:', error);
@@ -394,10 +399,18 @@ const deleteCar = (req, res) => {
     return res.status(404).json({ error: 'Car not found' });
   }
   
+  // Get a reference to the car before deletion (for WebSocket event)
+  const deletedCar = carsData.cars[carIndex];
+  
   // Remove car from "database"
   carsData.cars.splice(carIndex, 1);
   
-  res.json({ message: 'Car deleted successfully' });
+  // Broadcast event is now handled in the middleware layer in server.js
+  
+  res.json({ 
+    message: 'Car deleted successfully',
+    id: carId
+  });
 };
 
 module.exports = {

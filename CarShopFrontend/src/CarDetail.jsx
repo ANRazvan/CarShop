@@ -131,12 +131,17 @@ const CarDetail = () => {
 
             <div className="car-main">
                 <img
-                    src={`http://localhost:5000/uploads/${car.img}`}
+                    src={car.img ? 
+                        (car.img.startsWith('http') 
+                            ? car.img 
+                            : `http://localhost:5000/uploads/${car.img}`) 
+                        : 'https://via.placeholder.com/800x600?text=No+Image'}
                     alt={`${car.make} ${car.model}`}
                     className="car-image"
                     onError={(e) => {
+                        console.log("Image failed to load:", e.target.src);
                         e.target.onerror = null;
-                        e.target.src = '/placeholder-car.jpg';
+                        e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
                     }}
                 />
                 <div className="car-details">
