@@ -2,6 +2,7 @@ import React, { memo, useEffect, useState } from "react";
 import "./CarList.css";
 import { Link } from "react-router-dom";
 import Statistics from "./Statistics.jsx";
+import config from "./config.js";
 
 // Define the component first
 const CarListComponent = ({ 
@@ -163,7 +164,7 @@ const CarListComponent = ({
                             <Link to={`/CarDetail/${car.id}`} className="detail-link">
                                 <img
                                     className="car-img"
-                                    src={`http://localhost:5000/uploads/${car.img}`}
+                                    src={`${config.UPLOADS_PATH}${car.img}`}
                                     alt={car.model}
                                     loading="lazy"
                                     onError={(e) => {

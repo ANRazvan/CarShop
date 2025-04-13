@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import "./AddCar.css";
+import config from "./config.js";
 import CarOperationsContext from './CarOperationsContext.jsx';
 
 const UpdateCar = () => {
@@ -30,7 +31,7 @@ const UpdateCar = () => {
             // If online, try to get from server
             if (navigator.onLine) {
                 try {
-                    const response = await axios.get(`http://localhost:5000/api/cars/${id}`);
+                    const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
                     setCar(response.data);
                     setLoading(false);
                 } catch (error) {

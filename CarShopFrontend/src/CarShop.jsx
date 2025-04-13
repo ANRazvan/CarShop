@@ -8,6 +8,7 @@ import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import CarOperationsContext from './CarOperationsContext.jsx';
 import { faker } from "@faker-js/faker";
+import config from './config.js';
 
 // Utility function for debouncing
 const useDebounce = (value, delay) => {
@@ -82,7 +83,7 @@ const CarShop = () => {
     
     // Check if server is available
     const checkServerAvailability = useCallback(() => {
-        axios.get('http://localhost:5000/api/cars?page=1&itemsPerPage=1')
+        axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`)
             .then(() => {
                 setServerAvailable(true);
             })
@@ -179,7 +180,7 @@ const CarShop = () => {
             // Log the URL for debugging purposes
             console.log(`Fetching cars with params: ${params.toString()}`);
             
-            axios.get(`http://localhost:5000/api/cars?${params.toString()}`)
+            axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
                 .then((response) => {
                     console.log("API response received:", response.data);
                     // Filter out any cars that are in the deletedCarsRegistry
@@ -303,7 +304,7 @@ const CarShop = () => {
                             formData.append('image', operation.data.img);
                         }
                         
-                        const createdCarResponse = await axios.post('http://localhost:5000/api/cars', formData, {
+                        const createdCarResponse = await axios.post(`${config.API_URL}/api/cars`, formData, {
                             headers: {
                                 "Content-Type": "multipart/form-data",
                             }
@@ -321,10 +322,10 @@ const CarShop = () => {
                         break;
                     
                     case 'UPDATE':
-                        await axios.put(`http://localhost:5000/api/cars/${operation.id}`, operation.data);
+                        await axios.put(`${config.API_URL}/api/cars/${operation.id}`, operation.data);
                         break;
                     case 'DELETE':
-                        await axios.delete(`http://localhost:5000/api/cars/${operation.id}`);
+                        await axios.delete(`${config.API_URL}/api/cars/${operation.id}`);
                         
                         // Remove from deletedCarsRegistry if exists
                         const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
@@ -463,7 +464,7 @@ const CarShop = () => {
     const updateCar = useCallback((id, updatedData) => {
         console.log(`Updating car with ID: ${id}`);
         if (isOnline && serverAvailable) {
-            return axios.put(`http://localhost:5000/api/cars/${id}`, updatedData)
+            return axios.put(`${config.API_URL}/api/cars/${id}`, updatedData)
                 .then((response) => {
                     console.log("Car updated successfully:", response.data);
                     return response.data;
@@ -525,7 +526,7 @@ const CarShop = () => {
         };
 
         axios
-            .post("http://localhost:5000/api/cars", newCar)
+            .post(`${config.API_URL}/api/cars`, newCar)
             .then((response) => {
                 setCars((prevCars) => {
                     const updatedCars = [...prevCars, response.data];

@@ -3,6 +3,7 @@ import CheckboxList from './CheckboxList.jsx';
 import './Sidebar.css';
 import { Link } from "react-router-dom";
 import axios from 'axios';
+import config from './config.js';
 
 const Sidebar = ({ filters, onFilterChange, disabled }) => {
     // Available makes and fuel types from the server
@@ -11,7 +12,7 @@ const Sidebar = ({ filters, onFilterChange, disabled }) => {
     
     // Fetch available makes and fuel types from the general cars endpoint
     useEffect(() => {
-        axios.get('http://localhost:5000/api/cars')
+        axios.get(`${config.API_URL}/api/cars`)
             .then((response) => {
                 if (response.data && response.data.cars) {
                     // Extract unique makes from the cars array

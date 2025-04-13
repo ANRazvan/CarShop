@@ -9,6 +9,7 @@ import CarDetail from './CarDetail.jsx'
 import AddCar from "./AddCar.jsx";
 import UpdateCar from './UpdateCar.jsx';
 import CarOperationsContext from './CarOperationsContext.jsx';
+import config from "./config.js";
 
 // Queue for storing offline operations
 const getOfflineQueue = () => {
@@ -39,7 +40,7 @@ function App() {
     
     // Check if server is available
     const checkServerAvailability = useCallback(() => {
-        axios.get('http://localhost:5000/api/cars?page=1&itemsPerPage=1')
+        axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`)
             .then(() => {
                 setServerAvailable(true);
             })
@@ -111,7 +112,7 @@ function App() {
                 debug: true
             };
             
-            const wsUrl = 'ws://localhost:5000/ws';
+            const wsUrl = config.WS_URL;
             console.log(`Connecting to WebSocket at ${wsUrl}`);
             
             websocket.current = new ReconnectingWebSocket(wsUrl, [], wsOptions);
@@ -223,7 +224,7 @@ function App() {
         
         if (isOnline && serverAvailable) {
             console.log(`App: Online mode - using server deletion for ID: ${idStr}`);
-            return axios.delete(`http://localhost:5000/api/cars/${idStr}`)
+            return axios.delete(`${config.API_URL}/api/cars/${idStr}`)
                 .then(response => {
                     console.log('App: Server delete successful');
                     
@@ -265,7 +266,7 @@ function App() {
         
         if (isOnline && serverAvailable) {
             console.log('App: Online mode - using server creation');
-            return axios.post('http://localhost:5000/api/cars', formData, {
+            return axios.post(`${config.API_URL}/api/cars`, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 }
@@ -331,7 +332,7 @@ function App() {
 
         if (isOnline && serverAvailable) {
             console.log('App: Online mode - using server update');
-            return axios.put(`http://localhost:5000/api/cars/${id}`, formData, {
+            return axios.put(`${config.API_URL}/api/cars/${id}`, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 }

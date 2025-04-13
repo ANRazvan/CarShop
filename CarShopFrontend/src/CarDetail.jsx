@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './CarDetail.css';
+import config from './config.js';
 import CarOperationsContext from './CarOperationsContext.jsx';
 
 const CarDetail = () => {
@@ -49,7 +50,7 @@ const CarDetail = () => {
             // If online, try to get from server
             if (isOnline) {
                 try {
-                    const response = await axios.get(`http://localhost:5000/api/cars/${id}`);
+                    const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
                     setCar(response.data);
                     setLoading(false);
                     setServerAvailable(true);
@@ -134,7 +135,7 @@ const CarDetail = () => {
                     src={car.img ? 
                         (car.img.startsWith('http') 
                             ? car.img 
-                            : `http://localhost:5000/uploads/${car.img}`) 
+                            : `${config.UPLOADS_PATH}${car.img}`) 
                         : 'https://via.placeholder.com/800x600?text=No+Image'}
                     alt={`${car.make} ${car.model}`}
                     className="car-image"

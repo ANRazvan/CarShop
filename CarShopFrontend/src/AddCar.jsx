@@ -1,8 +1,9 @@
 import React, { useState, useContext } from "react";
-import "./AddCar.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import CarOperationsContext from './CarOperationsContext';
+import "./AddCar.css";
+import config from "./config.js";
+import CarOperationsContext from "./CarOperationsContext.jsx";
 
 const AddCar = () => {
     const { createCar } = useContext(CarOperationsContext);
@@ -115,7 +116,7 @@ const AddCar = () => {
             });
         } else {
             // Fallback if context function not available
-            axios.post("http://localhost:5000/api/cars", formData, {
+            axios.post(`${config.API_URL}/api/cars`, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
@@ -171,7 +172,7 @@ const AddCar = () => {
                 ) : (
                     <>
                         <input type="file" accept="image/*" onChange={handleImageUpload} />
-                        {errors.img && <p className="error">{errors.img}</p>}
+                        {errors.img && <p className="error">{errors.img}</p> }
                     </>
                 )}
             </div>
