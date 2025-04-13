@@ -105,9 +105,18 @@ const CarDetail = () => {
             
             try {
                 deleteCar(id)
-                    .then(() => {
+                    .then((response) => {
                         console.log("Delete operation completed");
-                        alert("Car deleted successfully!");
+                        
+                        // Check if this was an offline deletion
+                        if (!isOnline || !serverAvailable || 
+                            response?.data?.message?.includes('offline') || 
+                            response?.data?.message?.includes('marked for deletion')) {
+                            alert("Car has been removed from local view and will be deleted from the server when you're back online.");
+                        } else {
+                            alert("Car deleted successfully!");
+                        }
+                        
                         navigate('/');
                     })
                     .catch((error) => {

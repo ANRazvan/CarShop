@@ -170,13 +170,6 @@ const Charts = () => {
   return (
     <div>
       <h2>Real-Time Charts</h2>
-      <div className="generatebuttoncontainer">
-        <button className="generatebutton" onClick={toggleGeneration}>
-          {isGenerating ? 'Stop Generating Cars' : 'Start Generating Cars'}
-        </button>
-        <div className="image-info">
-        </div>
-      </div>
       <div className="chart-container">
         <div className="chart">
           <Line data={lineChartData} />
