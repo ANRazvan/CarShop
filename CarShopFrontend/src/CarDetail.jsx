@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './CarDetail.css';
@@ -13,6 +13,9 @@ const CarDetail = () => {
     const [error, setError] = useState(null); // Error state
     const [isOnline, setIsOnline] = useState(navigator.onLine); // Online status
     const [serverAvailable, setServerAvailable] = useState(true); // Server availability
+    const [videoUploadProgress, setVideoUploadProgress] = useState(0); // For tracking upload progress
+    const [isUploading, setIsUploading] = useState(false); // To show upload status
+    const fileInputRef = useRef(null); // Reference to file input
 
     // Get operations from context
     const operations = useContext(CarOperationsContext);
@@ -118,6 +121,68 @@ const CarDetail = () => {
         }
     };
 
+    // Handle video upload
+    const handleVideoUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Check if file is a video
+        if (!file.type.startsWith('video/')) {
+            alert('Please select a valid video file');
+            return;
+        }
+        
+        setIsUploading(true);
+        setVideoUploadProgress(0);
+        
+        const formData = new FormData();
+        formData.append('video', file);
+        
+        try {
+            await axios.post(`${config.API_URL}/api/cars/${id}/video`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                },
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setVideoUploadProgress(percentCompleted);
+                }
+            });
+            
+            // Refresh car data to get updated video information
+            const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
+            setCar(response.data);
+            alert('Video uploaded successfully!');
+        } catch (error) {
+            console.error('Error uploading video:', error);
+            alert('Failed to upload video. Please try again.');
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+    
+    // Handle video deletion
+    const handleDeleteVideo = async () => {
+        if (!car.video) return;
+        
+        const confirmed = window.confirm('Are you sure you want to delete this video?');
+        if (!confirmed) return;
+        
+        try {
+            await axios.delete(`${config.API_URL}/api/cars/${id}/video`);
+            // Update car data
+            const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
+            setCar(response.data);
+            alert('Video deleted successfully');
+        } catch (error) {
+            console.error('Error deleting video:', error);
+            alert('Failed to delete video. Please try again.');
+        }
+    };
+
     if (loading) return <p>Loading...</p>;
     if (error) return <p>{error}</p>;
 
@@ -160,6 +225,60 @@ const CarDetail = () => {
             <div className="description">
                 <h3>Description</h3>
                 <p>{car.description}</p>
+            </div>
+            
+            {/* Video Section */}
+            <div className="video-section">
+                <h3>Car Video</h3>
+                {car.video ? (
+                    <div className="video-container">
+                        <video 
+                            className="car-video" 
+                            controls 
+                            src={`${config.API_URL}/uploads/videos/${car.video}`}
+                            poster={car.img ? 
+                                (car.img.startsWith('http') 
+                                    ? car.img 
+                                    : `${config.UPLOADS_PATH}${car.img}`) 
+                                : 'https://via.placeholder.com/800x600?text=Car+Video'}
+                        >
+                            Your browser does not support the video tag.
+                        </video>
+                        <div className="video-controls">
+                            <a 
+                                href={`${config.API_URL}/uploads/videos/${car.video}`} 
+                                download 
+                                className="download-video-btn"
+                            >
+                                Download Video
+                            </a>
+                            <button 
+                                className="delete-video-btn" 
+                                onClick={handleDeleteVideo}
+                            >
+                                Delete Video
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="video-upload">
+                        <p>No video available for this car. Upload one below:</p>
+                        <input 
+                            type="file" 
+                            accept="video/*" 
+                            onChange={handleVideoUpload} 
+                            disabled={isUploading || !isOnline || !serverAvailable}
+                            ref={fileInputRef}
+                            className="video-upload-input"
+                        />
+                        {isUploading && (
+                            <div className="upload-progress">
+                                <div className="progress-bar" style={{ width: `${videoUploadProgress}%` }}></div>
+                                <span>{videoUploadProgress}%</span>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
             
             {car._isTemp && (

@@ -8,9 +8,16 @@ const { validateCarData } = require('../controllers/carController');
 // Setup multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploads');
+        // Choose destination based on file type
+        let uploadPath;
+        if (file.fieldname === 'video') {
+            uploadPath = path.join(__dirname, '../uploads/videos');
+        } else {
+            uploadPath = path.join(__dirname, '../uploads');
+        }
+        
         if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath);
+            fs.mkdirSync(uploadPath, { recursive: true });
         }
         cb(null, uploadPath);
     },
@@ -22,12 +29,25 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-        
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true);
+        if (file.fieldname === 'video') {
+            const allowedVideoTypes = [
+                'video/mp4', 'video/webm', 'video/ogg', 
+                'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv'
+            ];
+            if (allowedVideoTypes.includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new Error('Only common video formats are allowed (mp4, webm, ogg, mov, avi, wmv)'));
+            }
+        } else if (file.fieldname === 'image') {
+            const allowedImageTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+            if (allowedImageTypes.includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new Error('Only .jpg, .jpeg and .png file formats allowed for images'));
+            }
         } else {
-            cb(new Error('Only .jpg, .jpeg and .png file formats allowed'));
+            cb(new Error('Unexpected field type'));
         }
     }
 });
@@ -245,6 +265,74 @@ router.delete('/:id', (req, res) => {
     } catch (error) {
         console.error("Error deleting car:", error);
         res.status(500).json({ message: "Failed to delete car", error: error.message });
+    }
+});
+
+// POST upload video for a car
+router.post('/:id/video', upload.single('video'), (req, res) => {
+    try {
+        const carId = parseInt(req.params.id);
+        const carIndex = carsData.cars.findIndex(car => car.id === carId);
+        
+        if (carIndex === -1) {
+            return res.status(404).json({ message: "Car not found" });
+        }
+        
+        if (!req.file) {
+            return res.status(400).json({ message: "No video file uploaded" });
+        }
+        
+        // If there was a previous video, delete it
+        if (carsData.cars[carIndex].video) {
+            const oldVideoPath = path.join(__dirname, '../uploads/videos', carsData.cars[carIndex].video);
+            if (fs.existsSync(oldVideoPath)) {
+                fs.unlinkSync(oldVideoPath);
+            }
+        }
+        
+        // Update car with new video
+        carsData.cars[carIndex].video = req.file.filename;
+        
+        res.json({ 
+            message: "Video uploaded successfully",
+            car: carsData.cars[carIndex]
+        });
+    } catch (error) {
+        console.error("Error uploading video:", error);
+        res.status(500).json({ message: "Failed to upload video", error: error.message });
+    }
+});
+
+// DELETE video for a car
+router.delete('/:id/video', (req, res) => {
+    try {
+        const carId = parseInt(req.params.id);
+        const carIndex = carsData.cars.findIndex(car => car.id === carId);
+        
+        if (carIndex === -1) {
+            return res.status(404).json({ message: "Car not found" });
+        }
+        
+        // If the car has a video, delete it
+        if (carsData.cars[carIndex].video) {
+            const videoPath = path.join(__dirname, '../uploads/videos', carsData.cars[carIndex].video);
+            if (fs.existsSync(videoPath)) {
+                fs.unlinkSync(videoPath);
+            }
+            
+            // Remove video reference from car
+            carsData.cars[carIndex].video = null;
+            
+            res.json({ 
+                message: "Video deleted successfully",
+                car: carsData.cars[carIndex]
+            });
+        } else {
+            res.status(404).json({ message: "No video found for this car" });
+        }
+    } catch (error) {
+        console.error("Error deleting video:", error);
+        res.status(500).json({ message: "Failed to delete video", error: error.message });
     }
 });
 
