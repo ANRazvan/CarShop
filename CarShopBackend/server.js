@@ -14,6 +14,10 @@ const port = 5000;
 // Create HTTP server
 const server = http.createServer(app);
 
+// Remove size limits completely
+app.use(express.json({ limit: '0' })); // '0' means no limit
+app.use(express.urlencoded({ extended: true, limit: '0' })); // '0' means no limit
+
 // Configure CORS with explicit options
 app.use(cors({
     origin: '*', // Allow all origins - in production, specify your frontend URL
@@ -125,6 +129,15 @@ const upload = multer({
 
 // Make uploads directory accessible
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Make videos directory accessible for large files
+app.use('/uploads/videos', express.static(path.join(__dirname, 'uploads/videos'), {
+    maxAge: '1d', // Cache for 1 day
+    setHeaders: (res, path) => {
+        if (path.endsWith('.mp4') || path.endsWith('.webm') || path.endsWith('.ogg')) {
+            res.setHeader('Content-Type', `video/${path.split('.').pop()}`);
+        }
+    }
+}));
 
 // Middleware
 app.use(express.json());
