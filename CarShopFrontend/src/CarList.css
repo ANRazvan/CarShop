@@ -158,6 +158,53 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    min-height: 300px;
+    width: 100%;
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border-left-color: #09f;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+.loading-details {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.car-list-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    width: 100%;
+    color: #f44336;
+    font-weight: bold;
+    border: 1px solid #f44336;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.car-list-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     min-height: 400px;
     width: 100%;
 }

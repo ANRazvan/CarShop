@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import "./AddCar.css";
+import config from "./config.js";
+import CarOperationsContext from './CarOperationsContext.jsx';
 
 const UpdateCar = () => {
     const { id } = useParams(); // Get the car ID from the URL
     const navigate = useNavigate(); // Get navigate function
+    const { updateCar } = useContext(CarOperationsContext);
 
     const [car, setCar] = useState(null); // State to store car details
     const [errors, setErrors] = useState({}); // State for error messages
@@ -13,17 +16,49 @@ const UpdateCar = () => {
     const [error, setError] = useState(null); // Error state
 
     useEffect(() => {
-        // Fetch car details from the server
-        axios.get(`http://localhost:5000/api/cars/${id}`)
-            .then((response) => {
-                setCar(response.data); // Set the car data
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching car details:", error);
-                setError("Car not found");
-                setLoading(false);
-            });
+        const fetchCarDetails = async () => {
+            setLoading(true);
+
+            // Try to get from cache first
+            const cachedData = localStorage.getItem('cachedCars');
+            let cachedCar = null;
+
+            if (cachedData) {
+                const parsed = JSON.parse(cachedData);
+                cachedCar = parsed.cars.find(c => c.id.toString() === id.toString());
+            }
+
+            // If online, try to get from server
+            if (navigator.onLine) {
+                try {
+                    const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
+                    setCar(response.data);
+                    setLoading(false);
+                } catch (error) {
+                    console.error("Error fetching car details from server:", error);
+
+                    // If server is down but we have cached data, use it
+                    if (cachedCar) {
+                        setCar(cachedCar);
+                        setLoading(false);
+                    } else {
+                        setError("Car not found");
+                        setLoading(false);
+                    }
+                }
+            } else {
+                // If offline and we have cached data, use it
+                if (cachedCar) {
+                    setCar(cachedCar);
+                    setLoading(false);
+                } else {
+                    setError("You are offline and this car is not cached");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchCarDetails();
     }, [id]);
 
     const validateForm = () => {
@@ -74,16 +109,36 @@ const UpdateCar = () => {
     };
 
     const handleSubmit = () => {
-        if (validateForm()) {
-            axios.put(`http://localhost:5000/api/cars/${id}`, car)
-                .then((response) => {
+        if (!validateForm()) {
+            return; // Don't proceed if validation fails
+        }
+
+        const formData = new FormData();
+        formData.append("make", car.make);
+        formData.append("model", car.model);
+        formData.append("year", car.year);
+        formData.append("keywords", car.keywords);
+        formData.append("description", car.description);
+        formData.append("fuelType", car.fuelType);
+        formData.append("price", car.price);
+
+        if (car.img && typeof car.img === "object") {
+            formData.append("image", car.img); // Append the image file if it's a file object
+        }
+
+        if (updateCar) {
+            updateCar(car.id, formData)
+                .then(() => {
                     alert("Car updated successfully!");
                     navigate('/'); // Redirect to the home page
                 })
                 .catch((error) => {
                     console.error("Error updating car:", error);
-                    alert("Failed to update car.");
+                    setErrors(prev => ({ ...prev, submit: "Failed to update car. Please try again." }));
                 });
+        } else {
+            console.error("Update car function not available in context");
+            setErrors(prev => ({ ...prev, submit: "Update functionality is not available." }));
         }
     };
 
@@ -128,7 +183,7 @@ const UpdateCar = () => {
                 <select name="fuelType" value={car.fuelType} onChange={handleChange}>
                     <option value="">Select Fuel Type</option>
                     <option value="Diesel">Diesel</option>
-                    <option value="Gas">Gas</option>
+                    <option value="Gasoline">Gasoline</option>
                     <option value="Hybrid">Hybrid</option>
                     <option value="Electric">Electric</option>
                 </select>
