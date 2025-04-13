@@ -90,7 +90,7 @@ const Charts = () => {
     if (isGenerating && availableImages.length > 0) {
       interval = setInterval(() => {
         generateCar();
-      }, 2000); // Generate a new car every 2 seconds
+      }, 5000); // Generate a new car every 2 seconds
     }
 
     return () => clearInterval(interval);

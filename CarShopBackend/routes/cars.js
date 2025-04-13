@@ -37,16 +37,111 @@ let { carsData, filterCars, getCars, getCarById, createCar, updateCar, deleteCar
 
 // GET all cars with pagination and filtering
 router.get('/', (req, res) => {
-    getCars(req, res);
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const itemsPerPage = parseInt(req.query.itemsPerPage) || 10;
+        const sortBy = req.query.sortBy;
+        const sortOrder = req.query.sortOrder;
+        const makeFilter = req.query.make ? req.query.make.split(',') : [];
+        const fuelTypeFilter = req.query.fuelType ? req.query.fuelType.split(',') : [];
+        const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+        const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+        const searchTerm = req.query.search || '';
+
+        // Filter cars based on criteria
+        let filteredCars = [...carsData.cars];
+
+        // Apply make filter
+        if (makeFilter.length > 0) {
+            filteredCars = filteredCars.filter(car => makeFilter.includes(car.make));
+        }
+
+        // Apply fuel type filter
+        if (fuelTypeFilter.length > 0) {
+            filteredCars = filteredCars.filter(car => fuelTypeFilter.includes(car.fuelType));
+        }
+
+        // Apply price range filter
+        if (minPrice !== null) {
+            filteredCars = filteredCars.filter(car => parseFloat(car.price) >= minPrice);
+        }
+        if (maxPrice !== null) {
+            filteredCars = filteredCars.filter(car => parseFloat(car.price) <= maxPrice);
+        }
+
+        // Apply search term filter (check in make, model, and description)
+        if (searchTerm) {
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            filteredCars = filteredCars.filter(car => {
+                return (
+                    (car.make && car.make.toLowerCase().includes(lowerSearchTerm)) ||
+                    (car.model && car.model.toLowerCase().includes(lowerSearchTerm)) ||
+                    (car.description && car.description.toLowerCase().includes(lowerSearchTerm)) ||
+                    (car.keywords && car.keywords.toLowerCase().includes(lowerSearchTerm))
+                );
+            });
+        }
+
+        // Apply sorting
+        if (sortBy && sortOrder) {
+            filteredCars.sort((a, b) => {
+                // Convert string numbers to actual numbers for proper sorting
+                const valA = sortBy === 'price' || sortBy === 'year' ? parseFloat(a[sortBy]) : a[sortBy];
+                const valB = sortBy === 'price' || sortBy === 'year' ? parseFloat(b[sortBy]) : b[sortBy];
+                
+                // Handle case where values might be undefined
+                if (valA === undefined && valB === undefined) return 0;
+                if (valA === undefined) return 1;
+                if (valB === undefined) return -1;
+                
+                // Sort ascending or descending
+                if (sortOrder === 'asc') {
+                    return valA < valB ? -1 : valA > valB ? 1 : 0;
+                } else {
+                    return valA > valB ? -1 : valA < valB ? 1 : 0;
+                }
+            });
+        }
+
+        // Handle "unlimited" case (itemsPerPage = -1)
+        if (itemsPerPage === -1) {
+            return res.json({
+                cars: filteredCars,
+                totalPages: 1,
+                totalCars: filteredCars.length,
+            });
+        }
+
+        // Apply pagination
+        const startIndex = (page - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedCars = filteredCars.slice(startIndex, endIndex);
+
+        res.json({
+            cars: paginatedCars,
+            totalPages: Math.ceil(filteredCars.length / itemsPerPage),
+            totalCars: filteredCars.length,
+        });
+    } catch (error) {
+        console.error("Error fetching cars:", error);
+        res.status(500).json({ message: "Failed to fetch cars", error: error.message });
+    }
 });
 
 // GET car by ID
 router.get('/:id', (req, res) => {
-    getCarById(req, res);
+    const carId = parseInt(req.params.id);
+    const car = carsData.cars.find(car => car.id === carId);
+
+    if (!car) {
+        return res.status(404).json({ message: "Car not found" });
+    }
+
+    res.json(car);
 });
 
 // // Add this debug endpoint to CarShopBackend/routes/cars.js
-// router.get('/debug', (req, res) => {
+// router.get('/debug', (req, res) => { 
 //   // Return car data length and first few items
 //   res.json({
 //       totalCars: carsData.cars.length,
@@ -97,53 +192,22 @@ router.post('/', upload.single('image'), (req, res) => {
 router.put('/:id', upload.single('image'), (req, res) => {
     try {
         const carId = parseInt(req.params.id);
-        
-        // Find the car by ID
         const carIndex = carsData.cars.findIndex(car => car.id === carId);
-        
+
         if (carIndex === -1) {
             return res.status(404).json({ message: "Car not found" });
         }
-        
-        // Extract updated data from request
-        const { make, model, year, fuelType, price, description, keywords } = req.body;
-        
-        // Update only provided fields
+
         const updatedCar = {
             ...carsData.cars[carIndex],
-            make: make || carsData.cars[carIndex].make,
-            model: model || carsData.cars[carIndex].model,
-            year: year || carsData.cars[carIndex].year,
-            fuelType: fuelType || carsData.cars[carIndex].fuelType,
-            price: price || carsData.cars[carIndex].price,
-            description: description || carsData.cars[carIndex].description,
-            keywords: keywords || carsData.cars[carIndex].keywords,
+            ...req.body,
         };
-        
-        // Update image if provided
+
         if (req.file) {
-            // Remove old image if it exists
-            const oldImage = carsData.cars[carIndex].img;
-            if (oldImage) {
-                const imagePath = path.join(__dirname, '../uploads', oldImage);
-                if (fs.existsSync(imagePath)) {
-                    fs.unlinkSync(imagePath);
-                }
-            }
-            
             updatedCar.img = req.file.filename;
         }
-        
-        // Validate the updated car data
-        const validation = validateCarData(updatedCar);
-        if (!validation.valid) {
-            return res.status(400).json({ errors: validation.errors });
-        }
-        
-        // Update the car in the data array
-        carsData.cars[carIndex] = updatedCar;
-        
-        // Return the updated car
+
+        carsData.cars[carIndex] = updatedCar; // Ensure this line is updating the array
         res.json(updatedCar);
     } catch (error) {
         console.error("Error updating car:", error);

@@ -5,25 +5,35 @@ import { Link } from "react-router-dom";
 import axios from 'axios';
 
 const Sidebar = ({ filters, onFilterChange, disabled }) => {
-    // Available makes from the server
+    // Available makes and fuel types from the server
     const [makes, setMakes] = useState([]);
+    const [fuelTypes, setFuelTypes] = useState([]);
     
-    // Fetch available makes from the general cars endpoint
+    // Fetch available makes and fuel types from the general cars endpoint
     useEffect(() => {
         axios.get('http://localhost:5000/api/cars')
             .then((response) => {
-                if (response.data && response.data.makes) {
-                    console.log('Makes from API:', response.data.makes);
-                    setMakes(response.data.makes);
+                if (response.data && response.data.cars) {
+                    // Extract unique makes from the cars array
+                    const uniqueMakes = [...new Set(response.data.cars.map(car => car.make))];
+                    console.log('Makes extracted from API:', uniqueMakes);
+                    setMakes(uniqueMakes);
+                    
+                    // Extract unique fuel types from the cars array
+                    const uniqueFuelTypes = [...new Set(response.data.cars.map(car => car.fuelType))];
+                    console.log('Fuel types extracted from API:', uniqueFuelTypes);
+                    setFuelTypes(uniqueFuelTypes);
                 } else {
-                    // Fallback to default makes if API doesn't return makes
+                    // Fallback to default values if API doesn't return cars
                     setMakes(["Mazda", "Volkswagen", "BMW", "Mercedes", "Audi"]);
+                    setFuelTypes(["Diesel", "Gasoline", "Hybrid", "Electric"]);
                 }
             })
             .catch((error) => {
-                console.error('Error fetching makes:', error);
-                // Fallback to default makes if API fails
+                console.error('Error fetching data:', error);
+                // Fallback to default values if API fails
                 setMakes(["Mazda", "Volkswagen", "BMW", "Mercedes", "Audi"]);
+                setFuelTypes(["Diesel", "Gasoline", "Hybrid", "Electric"]);
             });
     }, []);
 
@@ -72,7 +82,7 @@ const Sidebar = ({ filters, onFilterChange, disabled }) => {
                 />
                 <CheckboxList
                     title="Fuel Type"
-                    items={["Diesel", "Gasoline", "Hybrid", "Electric"]}
+                    items={fuelTypes}
                     selectedItems={filters.fuelTypes}
                     onChange={handleFuelTypeChange}
                     disabled={disabled}

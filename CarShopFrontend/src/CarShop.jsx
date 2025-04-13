@@ -7,6 +7,7 @@ import "./CarShop.css";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import CarOperationsContext from './CarOperationsContext.jsx';
+import { faker } from "@faker-js/faker";
 
 // Utility function for debouncing
 const useDebounce = (value, delay) => {
@@ -60,6 +61,7 @@ const CarShop = () => {
         lastSyncTimestamp: null
     });
     const [realtimeUpdateReceived, setRealtimeUpdateReceived] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
     
     // Consolidated filter state
     const [filters, setFilters] = useState({
@@ -74,9 +76,10 @@ const CarShop = () => {
     const debouncedFilters = useDebounce(filters, 300);
     
     const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
-    const [itemsPerPage, setItemsPerPage] = useState(parseInt(searchParams.get("itemsPerPage") || "8"));
+    const [itemsPerPage, setItemsPerPage] = useState(searchParams.get("itemsPerPage") ? 
+        parseInt(searchParams.get("itemsPerPage")) : Infinity);
     const [sortMethod, setSortMethod] = useState('');
-
+    
     // Check if server is available
     const checkServerAvailability = useCallback(() => {
         axios.get('http://localhost:5000/api/cars?page=1&itemsPerPage=1')
@@ -107,12 +110,12 @@ const CarShop = () => {
                 console.log("Loading timeout reached - forcing exit from loading state");
                 setLoading(false);
             }
-        }, 10000); // 10 seconds timeout
+        }, 5000); // 5 seconds timeout
         
         const params = new URLSearchParams();
         
         params.append("page", currentPage.toString());
-        params.append("itemsPerPage", itemsPerPage.toString());
+        params.append("itemsPerPage", itemsPerPage === Infinity ? -1 : itemsPerPage.toString()); // Use -1 for unlimited
         
         if (sortMethod) {
             const [field, direction] = sortMethod.split('-');
@@ -154,13 +157,13 @@ const CarShop = () => {
                     
                     // Simple display of cached data without filtering/sorting
                     // Just use pagination for simplicity
-                    const startIndex = 0;
-                    const endIndex = parsed.cars.length;
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = itemsPerPage === Infinity ? parsed.cars.length : startIndex + itemsPerPage;
                     const simpleCars = parsed.cars.slice(startIndex, endIndex);
                     
                     console.log(`Retrieved ${simpleCars.length} cars from cache`);
                     setCars(simpleCars);
-                    setTotalPages(1); // No pagination in offline mode
+                    setTotalPages(itemsPerPage === Infinity ? 1 : Math.ceil(parsed.cars.length / itemsPerPage));
                 } catch (error) {
                     console.error("Error parsing cached data:", error);
                     setCars([]);
@@ -187,7 +190,7 @@ const CarShop = () => {
                     
                     console.log(`Displaying ${filteredCars.length} cars after filtering`);
                     setCars(filteredCars);
-                    setTotalPages(response.data.totalPages || 1);
+                    setTotalPages(itemsPerPage === Infinity ? 1 : response.data.totalPages || 1);
                     setLoading(false);
                     
                     // Cache the filtered data
@@ -237,7 +240,7 @@ const CarShop = () => {
             const cachedData = localStorage.getItem('cachedCars');
             if (cachedData) {
                 const parsed = JSON.parse(cachedData);
-                parsed.cars = parsed.cars.filter(car => !deletedCarsRegistry.includes(car.id.toString()));
+                parsed.cars = parsed.cars.filter(car => !deletedCarsRegistry.includes(deletedCarsRegistry.toString()));
                 localStorage.setItem('cachedCars', JSON.stringify(parsed));
             }
         }
@@ -457,6 +460,29 @@ const CarShop = () => {
         });
     }, [deleteCar, contextFetchCars]);
 
+    const updateCar = useCallback((id, updatedData) => {
+        console.log(`Updating car with ID: ${id}`);
+        if (isOnline && serverAvailable) {
+            return axios.put(`http://localhost:5000/api/cars/${id}`, updatedData)
+                .then((response) => {
+                    console.log("Car updated successfully:", response.data);
+                    return response.data;
+                })
+                .catch((error) => {
+                    console.error("Error updating car:", error);
+                    throw error;
+                });
+        } else {
+            console.log("Offline mode - queuing update operation");
+            addToOfflineQueue({
+                type: 'UPDATE',
+                id,
+                data: updatedData,
+            });
+            return Promise.resolve({ ...updatedData, _isTemp: true });
+        }
+    }, [isOnline, serverAvailable]);
+
     // Handle WebSocket messages - move this effect earlier and fix its behavior
     useEffect(() => {
         if (!lastWebSocketMessage) return;
@@ -485,6 +511,68 @@ const CarShop = () => {
                 console.warn("Unknown WebSocket message type:", type);
         }
     }, [lastWebSocketMessage]);
+
+    const generateCar = () => {
+        const newCar = {
+            make: faker.vehicle.manufacturer(),
+            model: faker.vehicle.model(),
+            year: faker.date.past(70, new Date('2030')).getFullYear(),
+            keywords: faker.vehicle.type(),
+            description: faker.lorem.sentence(),
+            fuelType: faker.helpers.arrayElement(['Diesel', 'Gasoline', 'Hybrid', 'Electric']),
+            price: faker.number.int({ min: 10000, max: 50000 }),
+            img: "placeholder.jpeg", // Default placeholder image
+        };
+
+        axios
+            .post("http://localhost:5000/api/cars", newCar)
+            .then((response) => {
+                setCars((prevCars) => {
+                    const updatedCars = [...prevCars, response.data];
+                    
+                    // Apply sorting if a sort method is active
+                    if (sortMethod) {
+                        const [field, direction] = sortMethod.split('-');
+                        return updatedCars.sort((a, b) => {
+                            if (direction === 'asc') {
+                                return a[field] - b[field];
+                            } else {
+                                return b[field] - a[field];
+                            }
+                        });
+                    }
+                    
+                    return updatedCars;
+                });
+                
+                // Update the cache with the new car
+                try {
+                    const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+                    cachedData.cars.push(response.data);
+                    localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+                } catch (error) {
+                    console.error("Error updating cache with generated car:", error);
+                }
+            })
+            .catch((error) => {
+                console.error("Error generating car:", error);
+            });
+    };
+
+    useEffect(() => {
+        let interval;
+        if (isGenerating) {
+            interval = setInterval(() => {
+                generateCar();
+            }, 2000); // Generate a new car every 2 seconds
+        }
+
+        return () => clearInterval(interval);
+    }, [isGenerating]);
+
+    const toggleGeneration = () => {
+        setIsGenerating((prev) => !prev);
+    };
 
     return (
         <div>
@@ -540,10 +628,15 @@ const CarShop = () => {
                         setSortMethod={setSortMethod}
                         isOffline={!isOnline || !serverAvailable}
                         createCar={carOperations.createCar}
-                        updateCar={carOperations.updateCar}
+                        updateCar={carOperations.updateCar} // Pass updateCar function
                         deleteCar={carOperations.deleteCar}
                         disableSortAndFilter={!isOnline || !serverAvailable}
                     />
+                    <div className="generation-controls">
+                        <button className="generate-button" onClick={toggleGeneration}>
+                            {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

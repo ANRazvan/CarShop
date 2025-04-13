@@ -326,13 +326,64 @@ function App() {
         return Promise.resolve({ data: tempCar });
     }, []);
 
-    const updateCar = useCallback((id, data) => {
+    const updateCar = useCallback((id, formData) => {
         console.log(`App: Update car called with ID: ${id}`);
-        // Implementation would go here - simplified for now
-        return Promise.resolve({ data: {} });
+
+        if (isOnline && serverAvailable) {
+            console.log('App: Online mode - using server update');
+            return axios.put(`http://localhost:5000/api/cars/${id}`, formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                }
+            })
+            .then(response => {
+                console.log('App: Server update successful', response.data);
+
+                // Update local cache with the updated car
+                try {
+                    const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+                    cachedData.cars = cachedData.cars.map(car => car.id === id ? response.data : car);
+                    localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+                } catch (error) {
+                    console.error('App: Error updating cache', error);
+                }
+
+                return response;
+            })
+            .catch(error => {
+                console.error('App: Error updating car on server', error);
+                return handleOfflineUpdate(id, formData);
+            });
+        } else {
+            console.log('App: Offline mode - using offline update');
+            return handleOfflineUpdate(id, formData);
+        }
+    }, [isOnline, serverAvailable]);
+
+    const handleOfflineUpdate = useCallback((id, formData) => {
+        // Convert FormData to a plain object for offline storage
+        const updatedData = {};
+        formData.forEach((value, key) => {
+            updatedData[key] = value;
+        });
+
+        // Update local cache
+        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+        cachedData.cars = cachedData.cars.map(car => car.id === id ? { ...car, ...updatedData, _isTemp: true } : car);
+        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+
+        // Add to offline queue
+        addToOfflineQueue({
+            type: 'UPDATE',
+            id,
+            data: updatedData,
+        });
+
+        return Promise.resolve({ data: { ...updatedData, id, _isTemp: true } });
     }, []);
     
     const fetchCars = useCallback(() => {
+
         console.log('App: Fetch cars called');
         // Implementation would go here - simplified for now
     }, []);

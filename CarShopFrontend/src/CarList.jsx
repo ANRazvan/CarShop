@@ -31,7 +31,7 @@ const CarListComponent = ({
                 // We don't modify the parent's loading state directly 
                 // but we can render our own loading-free UI
                 setLocalLoadingTimeout(true);
-            }, 8000);
+            }, 5000); // 5 seconds timeout
             
             return () => clearTimeout(timeout);
         } else {
@@ -51,7 +51,7 @@ const CarListComponent = ({
     }, [cars, loading, currentPage, totalPages, isOffline]);
 
     const handleItemsPerPageChange = (event) => {
-        const newItemsPerPage = parseInt(event.target.value);
+        const newItemsPerPage = event.target.value === "unlimited" ? Infinity : parseInt(event.target.value);
         setItemsPerPage(newItemsPerPage);
         setCurrentPage(1); // Reset to first page when changing items per page
     };
@@ -80,6 +80,20 @@ const CarListComponent = ({
         }
     };
 
+    const handleUpdate = (carId, updatedData) => {
+        if (window.confirm("Are you sure you want to update this car?")) {
+            updateCar(carId, updatedData)
+                .then(() => {
+                    console.log("Car updated successfully");
+                    alert("Car updated successfully!");
+                })
+                .catch(error => {
+                    console.error("Error updating car:", error);
+                    alert("Failed to update car");
+                });
+        }
+    };
+
     // Check if cars is undefined or null and handle it
     if (!cars) {
         return <div className="car-list-error">Error: No cars data available</div>;
@@ -95,10 +109,9 @@ const CarListComponent = ({
             )}
             <Statistics cars={cars} />
             <div className="controls">
-                <label>
-                    Items per page:
+                <div className="pagination-controls">
                     <select 
-                        value={itemsPerPage} 
+                        value={itemsPerPage === Infinity ? "unlimited" : itemsPerPage} 
                         onChange={handleItemsPerPageChange}
                         className={disableSortAndFilter ? "disabled-appearance" : ""}
                     >
@@ -106,8 +119,9 @@ const CarListComponent = ({
                         <option value={8}>8</option>
                         <option value={12}>12</option>
                         <option value={16}>16</option>
+                        <option value="unlimited">Unlimited</option>
                     </select>
-                </label>
+                </div>
                 <div className="sort-controls">
                     <select 
                         value={sortMethod} 
