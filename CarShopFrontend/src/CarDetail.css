@@ -112,3 +112,126 @@
 .related-subtitle {
     color: gray;
 }
+
+/* Video section styling */
+.video-section {
+    margin-top: 30px;
+    padding: 20px;
+    border-top: 1px solid #ddd;
+    width: 100%;
+    max-width: 800px;
+}
+
+.video-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.car-video {
+    width: 100%;
+    max-width: 700px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.video-controls {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.download-video-btn, .delete-video-btn {
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.download-video-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+}
+
+.delete-video-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+}
+
+.video-upload {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.video-upload-input {
+    margin: 10px 0;
+    padding: 10px;
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    width: 100%;
+}
+
+.upload-progress {
+    width: 100%;
+    height: 20px;
+    background-color: #eee;
+    border-radius: 10px;
+    margin: 10px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #4CAF50;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.upload-progress span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-weight: bold;
+}
+
+.file-size-note {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Offline indicator styling */
+.offline-mode-indicator {
+    width: 100%;
+    padding: 10px;
+    background-color: #ffcc00;
+    color: #333;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.temp-indicator {
+    width: 100%;
+    padding: 10px;
+    background-color: #f8d7da;
+    color: #721c24;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 5px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
