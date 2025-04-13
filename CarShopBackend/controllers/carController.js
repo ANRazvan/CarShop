@@ -2,44 +2,9 @@
 const { faker } = require('@faker-js/faker'); // Import faker
 const fs = require('fs');
 const path = require('path');
-
+const carsData = require('../data/cars'); // Import the cars data
 // Simulate a database with some initial car data
-const carsData = {
-  cars: [
-    {
-      id: 1,
-      make: 'Toyota',
-      model: 'Corolla',
-      year: '2022',
-      fuelType: 'Gasoline',
-      price: 25000,
-      description: 'Reliable and fuel-efficient sedan',
-      img: 'corolla.jpg'
-    },
-    {
-      id: 2,
-      make: 'Honda',
-      model: 'Civic',
-      year: '2023',
-      fuelType: 'Hybrid',
-      price: 28000,
-      description: 'Modern design with excellent fuel economy',
-      img: 'civic.jpg'
-    },
-    {
-      id: 3,
-      make: 'Toyota',
-      model: 'Camry',
-      year: '2022',
-      fuelType: 'Gasoline',
-      price: 30000,
-      description: 'Comfortable mid-size sedan',
-      img: 'camry.jpg'
-    }
-    // More cars can be added here
-  ],
-  nextId: 4
-};
+
 
 // Validate car data
 const validateCarData = (car) => {
@@ -76,17 +41,31 @@ const getCars = (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   
+  // Extract filter parameters including arrays for make and fuelType
+  const make = req.query.make ? req.query.make.split(',') : null;
+  const fuelType = req.query.fuelType ? req.query.fuelType.split(',') : null;
+  const search = req.query.search || '';
+  
   // Apply filters
   let filteredCars = filterCars({
     cars: carsData.cars,
-    make: req.query.make,
+    make: make,
     model: req.query.model,
     minYear: req.query.minYear,
     maxYear: req.query.maxYear,
     minPrice: req.query.minPrice,
     maxPrice: req.query.maxPrice,
-    fuelType: req.query.fuelType
+    fuelType: fuelType,
+    search: search
   });
+  
+  // Sort if requested
+  if (req.query.sortBy) {
+    const sortBy = req.query.sortBy;
+    const sortOrder = req.query.sortOrder || 'asc';
+    
+    filteredCars = sortCars(filteredCars, sortBy, sortOrder);
+  }
   
   // Calculate pagination
   const startIndex = (page - 1) * limit;
@@ -96,19 +75,23 @@ const getCars = (req, res) => {
   // Get the requested page of cars
   const paginatedCars = filteredCars.slice(startIndex, endIndex);
   
+  // Get unique makes for filtering options
+  const makes = [...new Set(carsData.cars.map(car => car.make))];
+  
   res.json({
     cars: paginatedCars,
     currentPage: page,
     totalPages,
-    totalCars: filteredCars.length
+    totalCars: filteredCars.length,
+    makes: makes // Return available makes for the frontend
   });
 };
 
 // Filter cars based on query parameters
-const filterCars = ({ cars, make, model, minYear, maxYear, minPrice, maxPrice, fuelType }) => {
+const filterCars = ({ cars, make, model, minYear, maxYear, minPrice, maxPrice, fuelType, search }) => {
   return cars.filter(car => {
-    // Filter by make
-    if (make && car.make.toLowerCase() !== make.toLowerCase()) {
+    // Filter by make (now supports array of makes)
+    if (make && make.length > 0 && !make.some(m => car.make.toLowerCase() === m.toLowerCase())) {
       return false;
     }
     
@@ -133,12 +116,46 @@ const filterCars = ({ cars, make, model, minYear, maxYear, minPrice, maxPrice, f
       return false;
     }
     
-    // Filter by fuel type
-    if (fuelType && car.fuelType !== fuelType) {
+    // Filter by fuel type (now supports array of fuel types)
+    if (fuelType && fuelType.length > 0 && !fuelType.some(f => car.fuelType === f)) {
       return false;
     }
     
+    // Filter by search term (check in make, model, description, keywords)
+    if (search && search.trim() !== '') {
+      const searchLower = search.toLowerCase();
+      const makeMatch = car.make.toLowerCase().includes(searchLower);
+      const modelMatch = car.model.toLowerCase().includes(searchLower);
+      const descMatch = car.description.toLowerCase().includes(searchLower);
+      const keywordsMatch = car.keywords && car.keywords.toLowerCase().includes(searchLower);
+      
+      if (!makeMatch && !modelMatch && !descMatch && !keywordsMatch) {
+        return false;
+      }
+    }
+    
     return true;
+  });
+};
+
+// Add a sorting function
+const sortCars = (cars, sortBy, sortOrder) => {
+  return [...cars].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortBy) {
+      case 'price':
+        comparison = a.price - b.price;
+        break;
+      case 'year':
+        comparison = parseInt(a.year) - parseInt(b.year);
+        break;
+      // Add more sorting options as needed
+      default:
+        comparison = 0;
+    }
+    
+    return sortOrder === 'desc' ? -comparison : comparison;
   });
 };
 
@@ -175,6 +192,9 @@ const createCar = (req, res) => {
   
   // Add to "database"
   carsData.cars.push(newCar);
+  
+  // Broadcast event is now handled in the middleware layer in server.js
+  // This keeps the controller focused on data operations
   
   res.status(201).json(newCar);
 };
@@ -214,6 +234,8 @@ const updateCar = (req, res) => {
     // Save updated car
     carsData.cars[carIndex] = updatedCar;
     
+    // Broadcast event is now handled in the middleware layer in server.js
+    
     res.json(updatedCar);
   } catch (error) {
     console.error('Error updating car:', error);
@@ -230,10 +252,18 @@ const deleteCar = (req, res) => {
     return res.status(404).json({ error: 'Car not found' });
   }
   
+  // Get a reference to the car before deletion (for WebSocket event)
+  const deletedCar = carsData.cars[carIndex];
+  
   // Remove car from "database"
   carsData.cars.splice(carIndex, 1);
   
-  res.json({ message: 'Car deleted successfully' });
+  // Broadcast event is now handled in the middleware layer in server.js
+  
+  res.json({ 
+    message: 'Car deleted successfully',
+    id: carId
+  });
 };
 
 module.exports = {
@@ -243,6 +273,7 @@ module.exports = {
   updateCar,
   deleteCar,
   filterCars,
+  sortCars,
   validateCarData,
   carsData // Exporting this for testing purposes
 };

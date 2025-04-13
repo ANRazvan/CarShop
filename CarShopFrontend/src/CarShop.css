@@ -31,3 +31,148 @@
     font-weight: bold;
 }
 
+.network-status {
+  position: fixed;
+  top: 50px;
+  left: 0;
+  right: 0;
+  padding: 8px 16px;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  transition: all 0.3s ease;
+  margin-top: 50px; 
+}
+
+.network-status.online {
+  background-color: #4CAF50;
+  opacity: 1;
+  transform: translateY(-100%);
+}
+
+.network-status.offline {
+  background-color: #F44336;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.network-status.server-down {
+  background-color: #FF9800;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pending-changes {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 0.85em;
+}
+
+.sync-status {
+  position: fixed;
+  margin-top: 200px;
+  bottom: 20px;
+  right: 20px;
+  background-color: #2196F3;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+/* Add visual indicator for temporary items */
+.car-card.temp-item {
+  border: 2px dashed #FF9800;
+  position: relative;
+}
+
+.car-card.temp-item::after {
+  content: 'Pending';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #FF9800;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.75em;
+}
+
+/* Add to CarShop.css */
+
+.sidebar.disabled {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.filter-disabled-message {
+    color: #f44336;
+    font-size: 0.85em;
+    margin-left: 10px;
+}
+
+.sidebar h3 span {
+    font-size: 0.75em;
+    color: #f44336;
+    font-weight: normal;
+    margin-left: 5px;
+}
+
+/* Optional: Add a visual indicator for disabled controls */
+.sort-controls select:disabled,
+.sidebar select:disabled,
+.sidebar input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+/* CarShop.css */
+
+.realtime-notification {
+  position: fixed;
+  top: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #2196F3;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 1001;
+  animation: slideDown 0.5s ease-out forwards, fadeOut 0.5s 2.5s forwards;
+}
+
+@keyframes slideDown {
+  from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* WebSocket connection indicator */
+.websocket-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: 10px;
+}
+
+.websocket-indicator.connected {
+  background-color: #4CAF50;
+}
+
+.websocket-indicator.disconnected {
+  background-color: #F44336;
+}
+

@@ -9,7 +9,7 @@ const carsData = {
             "description": "A stylish and sporty sedan with a 1.5L diesel engine, offering exceptional fuel efficiency and smooth handling. The Mazda 6 provides a luxurious interior with premium materials, a user-friendly infotainment system, and advanced safety features like lane departure warning and adaptive cruise control.",
             "fuelType": "Diesel",
             "price": 18209,
-            "img": "mazda.jpg"
+            "img": "mazda1.jpeg"
         },
         {
             "id": 2,
@@ -31,7 +31,7 @@ const carsData = {
             "description": "A modern compact car with a 1.8L VTEC turbocharged engine, providing an ideal balance of performance and efficiency. The Honda Civic boasts a sporty design, premium cabin, and advanced driver assistance features, making it a top choice for urban driving.",
             "fuelType": "Gasoline",
             "price": 21000,
-            "img": "civic.jpeg"
+            "img": "mazda1.jpeg"
         },
         {
             "id": 4,
