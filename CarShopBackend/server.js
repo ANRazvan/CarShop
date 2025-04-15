@@ -14,9 +14,9 @@ const port = 5000;
 // Create HTTP server
 const server = http.createServer(app);
 
-// Remove size limits completely
-app.use(express.json({ limit: '0' })); // '0' means no limit
-app.use(express.urlencoded({ extended: true, limit: '0' })); // '0' means no limit
+// Set appropriate size limits for request payloads
+app.use(express.json({ limit: '2048mb' })); // Allow larger JSON payloads (1050MB)
+app.use(express.urlencoded({ extended: true, limit: '2048mb' })); // Allow larger form data
 
 // Configure CORS with explicit options
 app.use(cors({
@@ -184,4 +184,15 @@ app.use('/api/cars', (req, res, next) => {
 server.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`WebSocket server is ready`);
+    
+    // Initialize the database with some cars if empty
+    const { carsData, populateCars } = require('./controllers/carController');
+    if (carsData.cars.length === 0) {
+        // Generate 20 random cars on startup
+        const numCarsToGenerate = 20;
+        const generatedCars = populateCars(numCarsToGenerate);
+        console.log(`Generated ${generatedCars.length} cars on startup`);
+    } else {
+        console.log(`Server started with ${carsData.cars.length} existing cars`);
+    }
 });

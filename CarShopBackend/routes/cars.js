@@ -28,6 +28,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
+    limits: {
+        fileSize: 2048 * 1024 * 1024, // 1GB file size limit
+    },
     fileFilter: (req, file, cb) => {
         if (file.fieldname === 'video') {
             const allowedVideoTypes = [
@@ -52,8 +55,8 @@ const upload = multer({
     }
 });
 
-// Import cars data
-let { carsData, filterCars, getCars, getCarById, createCar, updateCar, deleteCar } = require('../controllers/carController');
+// Import cars data and controller functions
+let { carsData, filterCars, getCars, getCarById, createCar, updateCar, deleteCar, populateCars } = require('../controllers/carController');
 
 // GET all cars with pagination and filtering
 router.get('/', (req, res) => {
@@ -158,6 +161,43 @@ router.get('/:id', (req, res) => {
     }
 
     res.json(car);
+});
+
+// POST generate random cars
+router.post('/generate/:count', (req, res) => {
+    try {
+        const count = parseInt(req.params.count);
+        
+        if (isNaN(count) || count <= 0 || count > 100) {
+            return res.status(400).json({ 
+                message: "Invalid count. Please provide a number between 1 and 100."
+            });
+        }
+        
+        // Generate the requested number of cars
+        const generatedCars = populateCars(count);
+        
+        // Broadcast event about the new cars if the broadcast function is available
+        if (req.app.locals.broadcast) {
+            generatedCars.forEach(car => {
+                req.app.locals.broadcast({
+                    type: 'CAR_CREATED',
+                    data: car,
+                    timestamp: Date.now()
+                });
+            });
+        }
+        
+        res.status(201).json({
+            message: `Successfully generated ${count} cars`,
+            carsGenerated: count,
+            totalCars: carsData.cars.length,
+            generatedCars
+        });
+    } catch (error) {
+        console.error("Error generating cars:", error);
+        res.status(500).json({ message: "Failed to generate cars", error: error.message });
+    }
 });
 
 // // Add this debug endpoint to CarShopBackend/routes/cars.js

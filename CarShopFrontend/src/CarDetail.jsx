@@ -105,9 +105,18 @@ const CarDetail = () => {
             
             try {
                 deleteCar(id)
-                    .then(() => {
+                    .then((response) => {
                         console.log("Delete operation completed");
-                        alert("Car deleted successfully!");
+                        
+                        // Check if this was an offline deletion
+                        if (!isOnline || !serverAvailable || 
+                            response?.data?.message?.includes('offline') || 
+                            response?.data?.message?.includes('marked for deletion')) {
+                            alert("Car has been removed from local view and will be deleted from the server when you're back online.");
+                        } else {
+                            alert("Car deleted successfully!");
+                        }
+                        
                         navigate('/');
                     })
                     .catch((error) => {
@@ -132,6 +141,23 @@ const CarDetail = () => {
             return;
         }
         
+        // Check file size - limit to 1GB
+        const MAX_FILE_SIZE = 2048 * 1024 * 1024; // 1GB in bytes
+        if (file.size > MAX_FILE_SIZE) {
+            alert(`File is too large. Maximum size is 1GB. Your file is ${(file.size / (1024 * 1024 * 1024)).toFixed(2)}GB`);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            return;
+        }
+        
+        // Log file information for debugging
+        console.log('Video file selected:', {
+            name: file.name,
+            type: file.type,
+            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+        });
+        
         setIsUploading(true);
         setVideoUploadProgress(0);
         
@@ -139,23 +165,51 @@ const CarDetail = () => {
         formData.append('video', file);
         
         try {
-            await axios.post(`${config.API_URL}/api/cars/${id}/video`, formData, {
+            console.log(`Uploading video to ${config.API_URL}/api/cars/${id}/video`);
+            const response = await axios.post(`${config.API_URL}/api/cars/${id}/video`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 },
                 onUploadProgress: (progressEvent) => {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                     setVideoUploadProgress(percentCompleted);
+                    console.log(`Upload progress: ${percentCompleted}%`);
                 }
             });
             
+            console.log('Video upload successful, response:', response.data);
+            
             // Refresh car data to get updated video information
-            const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
-            setCar(response.data);
+            const carResponse = await axios.get(`${config.API_URL}/api/cars/${id}`);
+            setCar(carResponse.data);
             alert('Video uploaded successfully!');
         } catch (error) {
             console.error('Error uploading video:', error);
-            alert('Failed to upload video. Please try again.');
+            
+            // Provide more detailed error information
+            if (error.response) {
+                // The server responded with a status code outside the 2xx range
+                console.error('Server response:', error.response.data);
+                console.error('Status code:', error.response.status);
+                
+                // Check specifically for file size error in the response
+                const responseText = typeof error.response.data === 'string' 
+                    ? error.response.data 
+                    : JSON.stringify(error.response.data);
+                
+                if (responseText.includes('File too large') || responseText.includes('MulterError')) {
+                    alert('Upload failed: The file is too large. Maximum size allowed by the server is likely smaller than 10MB.');
+                } else {
+                    alert(`Upload failed: ${error.response.status} - ${error.response.data.message || 'Server error'}`);
+                }
+            } else if (error.request) {
+                // The request was made but no response was received
+                console.error('No response received from server');
+                alert('Upload failed: No response from server. Check your connection.');
+            } else {
+                // Something happened in setting up the request
+                alert(`Upload failed: ${error.message}`);
+            }
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) {

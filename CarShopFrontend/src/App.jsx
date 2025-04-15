@@ -194,25 +194,30 @@ function App() {
         // Convert id to string for consistent comparison
         const idStr = String(id);
         
-        // Update local cache
-        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-        cachedData.cars = cachedData.cars.filter(car => String(car.id) !== idStr);
-        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
-        
-        // Add to offline queue
+        // Add to offline queue for server-side deletion when online
         addToOfflineQueue({
             type: 'DELETE',
             id: idStr
         });
         
-        // Also update deletedCarsRegistry for additional verification
+        // Update deletedCarsRegistry for tracking which cars should be filtered out in the UI
         const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
         if (!deletedCarsRegistry.includes(idStr)) {
             deletedCarsRegistry.push(idStr);
             localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
         }
         
-        return Promise.resolve({ data: { message: 'Car deleted successfully' } });
+        // IMPROVEMENT: Immediately remove the car from cached cars for better offline UX
+        try {
+            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+            cachedData.cars = cachedData.cars.filter(car => String(car.id) !== idStr);
+            localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+            console.log(`App: Removed car ${idStr} from local cache for immediate UI update`);
+        } catch (error) {
+            console.error('App: Error updating cache during offline deletion', error);
+        }
+        
+        return Promise.resolve({ data: { message: 'Car marked for deletion and removed from local view' } });
     }, []);
     
     // Define delete car function that will be available everywhere
@@ -221,6 +226,24 @@ function App() {
         
         // Ensure id is consistently a string
         const idStr = String(id);
+        
+        // First check if this car is already in the deletedCarsRegistry
+        const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+        if (deletedCarsRegistry.includes(idStr)) {
+            console.log(`App: Car with ID ${idStr} is already marked for deletion, skipping server call`);
+            return Promise.resolve({ data: { message: 'Car already marked for deletion' } });
+        }
+        
+        // Also check if it's already in the offline queue to avoid duplicates
+        const offlineQueue = getOfflineQueue();
+        const isInOfflineQueue = offlineQueue.some(op => 
+            op.type === 'DELETE' && String(op.id) === idStr
+        );
+        
+        if (isInOfflineQueue) {
+            console.log(`App: Car with ID ${idStr} is already in deletion queue, skipping server call`);
+            return Promise.resolve({ data: { message: 'Car already in deletion queue' } });
+        }
         
         if (isOnline && serverAvailable) {
             console.log(`App: Online mode - using server deletion for ID: ${idStr}`);
@@ -239,7 +262,6 @@ function App() {
                     
                     // Add to deletedCarsRegistry
                     try {
-                        const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
                         if (!deletedCarsRegistry.includes(idStr)) {
                             deletedCarsRegistry.push(idStr);
                             localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
@@ -384,10 +406,57 @@ function App() {
     }, []);
     
     const fetchCars = useCallback(() => {
-
         console.log('App: Fetch cars called');
-        // Implementation would go here - simplified for now
-    }, []);
+        
+        // Add detailed debugging for server availability
+        console.log(`App: Current network status - Online: ${isOnline}, Server Available: ${serverAvailable}`);
+        
+        // Add a server availability check that logs detailed information
+        const checkWithDebug = () => {
+            console.log(`App: Performing debug check to API endpoint: ${config.API_URL}/api/cars`);
+            
+            return axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`)
+                .then(response => {
+                    console.log(`App: Server responded successfully with status ${response.status}`);
+                    console.log('App: First car in response:', response.data.cars && response.data.cars[0] ? 
+                        JSON.stringify(response.data.cars[0]) : 'No cars in response');
+                    return true;
+                })
+                .catch(error => {
+                    console.error(`App: Server check failed with error:`, error);
+                    console.log(`App: Error details - ${error.message}`);
+                    
+                    // Log more details about the error
+                    if (error.response) {
+                        // The request was made and the server responded with a status code
+                        console.error(`App: Server responded with status ${error.response.status}`);
+                        console.error('App: Response headers:', JSON.stringify(error.response.headers));
+                        console.error('App: Response data:', JSON.stringify(error.response.data));
+                    } else if (error.request) {
+                        // The request was made but no response was received
+                        console.error('App: No response received from server');
+                        console.error('App: Request details:', JSON.stringify(error.request));
+                    } else {
+                        // Something happened in setting up the request that triggered an Error
+                        console.error('App: Error setting up request:', error.message);
+                    }
+                    
+                    return false;
+                });
+        };
+        
+        // Run the debug check
+        if (isOnline) {
+            checkWithDebug().then(available => {
+                console.log(`App: Debug check result - Server available: ${available}`);
+                setServerAvailable(available);
+            });
+        } else {
+            console.log('App: Not checking server as device is offline');
+        }
+        
+        // Implementation would typically go here - simplified for now
+    }, [isOnline, serverAvailable]);
 
     // Create the context value with WebSocket info
     const carOperations = useMemo(() => ({

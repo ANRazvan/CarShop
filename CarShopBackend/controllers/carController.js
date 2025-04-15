@@ -3,8 +3,94 @@ const { faker } = require('@faker-js/faker'); // Import faker
 const fs = require('fs');
 const path = require('path');
 const carsData = require('../data/cars'); // Import the cars data
-// Simulate a database with some initial car data
 
+// Car makes and models mapping
+const carModels = {
+  'Mazda': ['3', '6', 'CX-5', 'MX-5', 'CX-30'],
+  'Toyota': ['Camry', 'Corolla', 'RAV4', 'Prius', 'Highlander'],
+  'Honda': ['Civic', 'Accord', 'CR-V', 'Pilot', 'HR-V'],
+  'Ford': ['Mondeo', 'Focus', 'Mustang', 'Explorer', 'F-150'],
+  'BMW': ['3 Series', '5 Series', 'X3', 'X5', '7 Series'],
+  'Mercedes-Benz': ['C-Class', 'E-Class', 'A-Class', 'GLC', 'S-Class'],
+  'Audi': ['A4', 'A6', 'Q5', 'Q7', 'A3'],
+  'Volkswagen': ['Passat', 'Golf', 'Tiguan', 'Polo', 'Jetta'],
+  'Hyundai': ['Sonata', 'Elantra', 'Tucson', 'Santa Fe', 'Kona'],
+  'Kia': ['Optima', 'Forte', 'Sorento', 'Sportage', 'Soul'],
+  'Nissan': ['Altima', 'Maxima', 'Rogue', 'Sentra', 'Pathfinder']
+};
+
+// Fuel types
+const fuelTypes = ['Diesel', 'Gasoline', 'Hybrid', 'Electric'];
+
+// Available images
+const availableImages = [
+  'mazda1.jpeg', 'mazda2.jpeg', 'audia4.jpeg', 'bmw3series.jpeg', 
+  'camry.jpg', 'cclass.jpeg', 'civic.jpeg', 'mondeo.jpeg', 
+  'optima.jpeg', 'sonata.jpeg', 'altima.jpeg'
+];
+
+// Generate a random car
+const generateCar = () => {
+  // Pick a random make
+  const make = faker.helpers.arrayElement(Object.keys(carModels));
+  
+  // Pick a model for the make
+  const model = faker.helpers.arrayElement(carModels[make]);
+  
+  // Generate a year between 2018 and 2023
+  const year = faker.number.int({ min: 2018, max: 2023 }).toString();
+  
+  // Pick a fuel type
+  const fuelType = faker.helpers.arrayElement(fuelTypes);
+  
+  // Generate a price between 15000 and 50000
+  const price = faker.number.int({ min: 15000, max: 50000 });
+  
+  // Generate keywords
+  const engineSize = (fuelType === 'Electric') 
+    ? `${faker.number.int({ min: 30, max: 120 })}kWh Battery` 
+    : `${faker.number.float({ min: 1.0, max: 3.0, precision: 0.1 })}L ${fuelType}`;
+  const keywords = `${engineSize} ${faker.number.int({ min: 100, max: 350 })}Hp ${year}`;
+  
+  // Generate description
+  const description = `The ${make} ${model} is a ${faker.helpers.arrayElement(['stylish', 'modern', 'practical', 'reliable', 'comfortable'])} 
+    ${faker.helpers.arrayElement(['sedan', 'car', 'vehicle'])} with a ${engineSize} engine, 
+    ${faker.helpers.arrayElement(['offering exceptional performance', 'providing great fuel efficiency', 'combining power and efficiency'])}.
+    It features ${faker.helpers.arrayElement(['premium interior', 'advanced technology', 'spacious cabin', 'modern design'])} and 
+    ${faker.helpers.arrayElement(['excellent safety features', 'intuitive controls', 'state-of-the-art infotainment', 'advanced driver assistance'])}.`;
+  
+  // Pick a random image from available images
+  const img = faker.helpers.arrayElement(availableImages);
+  
+  // Create the car object
+  return {
+    id: carsData.nextId++,
+    make,
+    model,
+    year,
+    keywords,
+    description,
+    fuelType,
+    price,
+    img
+  };
+};
+
+// Generate multiple cars
+const generateCars = (count) => {
+  const newCars = [];
+  for (let i = 0; i < count; i++) {
+    newCars.push(generateCar());
+  }
+  return newCars;
+};
+
+// Generate cars and add them to the data store
+const populateCars = (count) => {
+  const generatedCars = generateCars(count);
+  carsData.cars = [...carsData.cars, ...generatedCars];
+  return generatedCars;
+};
 
 // Validate car data
 const validateCarData = (car) => {
@@ -275,5 +361,8 @@ module.exports = {
   filterCars,
   sortCars,
   validateCarData,
-  carsData // Exporting this for testing purposes
+  carsData, // Exporting this for testing purposes
+  generateCar,
+  generateCars,
+  populateCars
 };

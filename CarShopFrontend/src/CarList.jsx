@@ -71,8 +71,15 @@ const CarListComponent = ({
     const handleDelete = (carId) => {
         if (window.confirm("Are you sure you want to delete this car?")) {
             deleteCar(carId)
-                .then(() => {
-                    // Already handled in the parent component
+                .then((response) => {
+                    // Check if we're offline by looking at the response message
+                    if (response?.data?.message?.includes('offline') || 
+                        response?.data?.message?.includes('marked for deletion')) {
+                        alert("Car has been removed from local view and will be deleted from the server when you're back online.");
+                    } else {
+                        // Normal online deletion
+                        console.log("Car deleted successfully on server");
+                    }
                 })
                 .catch(error => {
                     console.error("Error deleting car:", error);
