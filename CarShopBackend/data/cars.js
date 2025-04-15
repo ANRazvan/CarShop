@@ -144,6 +144,7 @@ const carsData = {
             "img": "mazda2.jpeg"
         },
     ],
-  };
+    nextId: 14  // Set this to one higher than the highest ID in the cars array
+};
   
-  module.exports = carsData;
+module.exports = carsData;

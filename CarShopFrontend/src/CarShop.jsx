@@ -205,7 +205,7 @@ const CarShop = () => {
                     // Filter out any cars that are in the deletedCarsRegistry
                     const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
                     const filteredCars = (response.data.cars || []).filter(
-                        car => !deletedCarsRegistry.includes(car.id.toString())
+                        car => car.id != null && !deletedCarsRegistry.includes(car.id.toString())
                     );
                     
                     console.log(`CarShop: Displaying ${filteredCars.length} cars after filtering`);
@@ -742,49 +742,43 @@ const CarShop = () => {
     }, [lastWebSocketMessage]);
 
     const generateCar = () => {
-        const newCar = {
-            make: faker.vehicle.manufacturer(),
-            model: faker.vehicle.model(),
-            year: faker.date.past(70, new Date('2030')).getFullYear(),
-            keywords: faker.vehicle.type(),
-            description: faker.lorem.sentence(),
-            fuelType: faker.helpers.arrayElement(['Diesel', 'Gasoline', 'Hybrid', 'Electric']),
-            price: faker.number.int({ min: 10000, max: 50000 }),
-            img: "placeholder.jpeg", // Default placeholder image
-        };
-
-        axios
-            .post(`${config.API_URL}/api/cars`, newCar)
+        setLoading(true);
+        
+        // Use the backend endpoint to generate one car
+        axios.post(`${config.API_URL}/api/cars/generate/1`)
             .then((response) => {
-                setCars((prevCars) => {
-                    const updatedCars = [...prevCars, response.data];
-                    
-                    // Apply sorting if a sort method is active
-                    if (sortMethod) {
-                        const [field, direction] = sortMethod.split('-');
-                        return updatedCars.sort((a, b) => {
-                            if (direction === 'asc') {
-                                return a[field] - b[field];
-                            } else {
-                                return b[field] - a[field];
-                            }
-                        });
-                    }
-                    
-                    return updatedCars;
-                });
+                console.log("Car generated successfully:", response.data);
                 
-                // Update the cache with the new car
-                try {
-                    const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-                    cachedData.cars.push(response.data);
-                    localStorage.setItem('cachedCars', JSON.stringify(cachedData));
-                } catch (error) {
-                    console.error("Error updating cache with generated car:", error);
+                // Access the generated cars properly from the response structure
+                if (response.data && response.data.generatedCars && response.data.generatedCars.length > 0) {
+                    const newCar = response.data.generatedCars[0];
+                    console.log("Adding newly generated car to state with ID:", newCar.id);
+                    
+                    // Ensure the car has a real ID - we'll use the one from the server response
+                    if (!newCar.id) {
+                        console.error("Generated car is missing an ID:", newCar);
+                    } else {
+                        // Add the new car to the beginning of the list
+                        setCars(prevCars => [newCar, ...prevCars]);
+                        
+                        // Also update the cached cars
+                        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+                        cachedData.cars = [newCar, ...cachedData.cars];
+                        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+                        
+                        // Show a notification
+                        setRealtimeUpdateReceived(true);
+                        setTimeout(() => setRealtimeUpdateReceived(false), 3000);
+                    }
+                } else {
+                    console.error("No new car data in response:", response.data);
                 }
+                
+                setLoading(false);
             })
             .catch((error) => {
                 console.error("Error generating car:", error);
+                setLoading(false);
             });
     };
 
@@ -812,6 +806,11 @@ const CarShop = () => {
                         onFilterChange={handleFilterChange}
                         disabled={!isOnline || !serverAvailable}
                     />
+                    <div className="generatebuttoncontainer">
+                        <button className="generatebutton" onClick={toggleGeneration}>
+                            {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
+                        </button>
+                    </div>
                     <div className="main-content">
                 {/* Network Status Indicator */}
                 <div className={`network-status ${!isOnline ? 'offline' : !serverAvailable ? 'server-down' : 'online'}`}>
@@ -863,11 +862,7 @@ const CarShop = () => {
                         fetchInfiniteScrollCars={fetchInfiniteScrollCars}
                     />
                     <br></br>
-                    <div className="generatebuttoncontainer">
-                        <button className="generatebutton" onClick={toggleGeneration}>
-                            {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
-                        </button>
-                    </div>
+                    
                     <Charts />
                 </div>
             </div>
