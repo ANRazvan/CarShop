@@ -6,9 +6,15 @@ const fs = require('fs');
 const { WebSocketServer } = require('ws');
 const http = require('http');
 const carRoutes = require('./routes/cars');
+const brandRoutes = require('./routes/brands');
 const { connectDB, sequelize } = require('./config/pgdb');
 const Car = require('./models/Car');
+const Brand = require('./models/Brand');
+const setupAssociations = require('./models/associations');
 require('dotenv').config();
+
+// Initialize model associations
+setupAssociations();
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -181,20 +187,63 @@ app.use('/api/cars', (req, res, next) => {
     next();
 }, carRoutes);
 
+// Brand routes with WebSocket support
+app.use('/api/brands', (req, res, next) => {
+    const originalJson = res.json;
+    
+    res.json = function(body) {
+        // Check what type of operation it was and broadcast appropriate message
+        if (req.method === 'POST' && res.statusCode === 201) {
+            // Create operation
+            broadcast({
+                type: 'BRAND_CREATED',
+                data: body,
+                timestamp: Date.now()
+            });
+        } else if (req.method === 'PUT' && res.statusCode === 200) {
+            // Update operation
+            broadcast({
+                type: 'BRAND_UPDATED',
+                data: body,
+                timestamp: Date.now()
+            });
+        } else if (req.method === 'DELETE' && res.statusCode === 200) {
+            // Delete operation
+            broadcast({
+                type: 'BRAND_DELETED',
+                data: { id: req.params.id },
+                timestamp: Date.now()
+            });
+        }
+        
+        return originalJson.call(this, body);
+    };
+    
+    next();
+}, brandRoutes);
+
 // Connect to PostgreSQL database and start the server
 connectDB()
   .then(async () => {
-    // Sync models with database
-    await sequelize.sync();
-    console.log('Database synced');
+    // Sync models with database (force: true will drop tables if they exist)
+    // Note: Only use force: true during development
+    await sequelize.sync({ force: true });
+    console.log('Database synced and tables recreated');
     
     // Start the server after database connection is established
     server.listen(port, async () => {
       console.log(`Server running on port ${port}`);
       console.log(`WebSocket server is ready`);
       
-      // Initialize the database with some cars if empty
       try {
+        // Initialize brands data if empty
+        const { populateInitialBrands } = require('./controllers/brandController');
+        const brandsCreated = await populateInitialBrands();
+        if (brandsCreated > 0) {
+          console.log(`Created ${brandsCreated} initial brands`);
+        }
+        
+        // Initialize the database with some cars if empty
         const carCount = await Car.count();
         if (carCount === 0) {
           // Generate 20 random cars on startup

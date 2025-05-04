@@ -47,6 +47,13 @@ const addToOfflineQueue = (operation) => {
     setOfflineQueue(queue);
 };
 
+const clearOfflineQueue = () => {
+    localStorage.removeItem('offlineOperationsQueue');
+    console.log("CarShop: Offline operations queue cleared");
+    // Return an empty array to ensure the queue is cleared
+    return [];
+};
+
 const CarShop = () => {
     const carOperations = useContext(CarOperationsContext);
     const { deleteCar, fetchCars: contextFetchCars, lastWebSocketMessage } = carOperations;
@@ -134,8 +141,10 @@ const CarShop = () => {
             params.append("sortOrder", direction);
         }
         
-        if (debouncedFilters.makes.length > 0) {
-            params.append("make", debouncedFilters.makes.join(","));
+        // Updated: Use brandId instead of make to match backend expectations
+        if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
+            params.append("brandId", debouncedFilters.makes.join(","));
+            console.log("CarShop: Setting brandId filter:", debouncedFilters.makes.join(","));
         }
         
         if (debouncedFilters.fuelTypes.length > 0) {
@@ -292,8 +301,10 @@ const CarShop = () => {
             params.append("sortOrder", direction);
         }
         
-        if (debouncedFilters.makes.length > 0) {
-            params.append("make", debouncedFilters.makes.join(","));
+        // Updated: Use brandId instead of make to match backend expectations
+        if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
+            params.append("brandId", debouncedFilters.makes.join(","));
+            console.log("CarShop: Setting brandId filter:", debouncedFilters.makes.join(","));
         }
         
         if (debouncedFilters.fuelTypes.length > 0) {
@@ -455,16 +466,19 @@ const CarShop = () => {
         
         console.log(`CarShop: Processing ${prioritizedQueue.length} operations (${deleteOperations.length} deletions)`);
         
-        let failed = false;
-        let completedOperations = 0;
+        let successCount = 0;
+        let failedCount = 0;
+        let skippedCount = 0;
         let processedIds = []; // Track which IDs we've already processed
+        let successfulOperations = []; // Track successful operations
+        let failedOperations = []; // Track failed operations
         
-        // Process queue in order with improved error handling
+        // Process each operation independently
         for (const operation of prioritizedQueue) {
             // Skip duplicate operations on the same ID
             if (processedIds.includes(String(operation.id))) {
                 console.log(`CarShop: Skipping duplicate operation on ID ${operation.id}`);
-                completedOperations++;
+                skippedCount++;
                 continue;
             }
             
@@ -473,21 +487,21 @@ const CarShop = () => {
                 
                 switch(operation.type) {
                     case 'CREATE':
-                        // For CREATE operations, we need to handle the file separately
-                        const formData = new FormData();
-                        Object.keys(operation.data).forEach(key => {
-                            // Skip the img property if it's an object (file)
-                            if (key !== 'img' || typeof operation.data[key] !== 'object') {
-                                formData.append(key, operation.data[key]);
-                            }
-                        });
-                        
-                        // If we have an image file, add it
-                        if (operation.data.img && typeof operation.data.img === 'object') {
-                            formData.append('image', operation.data.img);
-                        }
-                        
                         try {
+                            // For CREATE operations, we need to handle the file separately
+                            const formData = new FormData();
+                            Object.keys(operation.data).forEach(key => {
+                                // Skip the img property if it's an object (file)
+                                if (key !== 'img' || typeof operation.data[key] !== 'object') {
+                                    formData.append(key, operation.data[key]);
+                                }
+                            });
+                            
+                            // If we have an image file, add it
+                            if (operation.data.img && typeof operation.data.img === 'object') {
+                                formData.append('image', operation.data.img);
+                            }
+                            
                             const createdCarResponse = await axios.post(`${config.API_URL}/api/cars`, formData, {
                                 headers: {
                                     "Content-Type": "multipart/form-data",
@@ -503,34 +517,45 @@ const CarShop = () => {
                                 localStorage.setItem('cachedCars', JSON.stringify(cachedData));
                             }
                             console.log(`CarShop: Created car with server ID ${createdCarResponse.data.id}`);
+                            successCount++;
+                            successfulOperations.push(operation);
                         } catch (error) {
                             console.error(`CarShop: Error creating car:`, error);
-                            throw error;
+                            failedCount++;
+                            failedOperations.push({...operation, error: error.message});
+                            // Continue with next operation instead of throwing
                         }
                         break;
                     
                     case 'UPDATE':
-                        // Skip update if this ID is in deletedCarsRegistry
-                        if (deletedCarsRegistry.includes(String(operation.id))) {
-                            console.log(`CarShop: Skipping update for ID ${operation.id} as it's marked for deletion`);
-                        } else {
-                            try {
+                        try {
+                            // Skip update if this ID is in deletedCarsRegistry
+                            if (deletedCarsRegistry.includes(String(operation.id))) {
+                                console.log(`CarShop: Skipping update for ID ${operation.id} as it's marked for deletion`);
+                                skippedCount++;
+                            } else {
                                 await axios.put(`${config.API_URL}/api/cars/${operation.id}`, operation.data);
                                 console.log(`CarShop: Updated car with ID ${operation.id}`);
-                            } catch (error) {
-                                // If we get a 404, the car might have been deleted by another client
-                                if (error.response && error.response.status === 404) {
-                                    console.log(`CarShop: Car with ID ${operation.id} not found, possibly deleted`);
-                                    // Add to deletedCarsRegistry to prevent future operations on it
-                                    if (!deletedCarsRegistry.includes(String(operation.id))) {
-                                        deletedCarsRegistry.push(String(operation.id));
-                                        localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
-                                    }
-                                } else {
-                                    console.error(`CarShop: Error updating car:`, error);
-                                    throw error;
-                                }
+                                successCount++;
+                                successfulOperations.push(operation);
+                                processedIds.push(String(operation.id)); // Mark as processed
                             }
+                        } catch (error) {
+                            // If we get a 404, the car might have been deleted by another client
+                            if (error.response && error.response.status === 404) {
+                                console.log(`CarShop: Car with ID ${operation.id} not found, possibly deleted`);
+                                skippedCount++;
+                                // Add to deletedCarsRegistry to prevent future operations on it
+                                if (!deletedCarsRegistry.includes(String(operation.id))) {
+                                    deletedCarsRegistry.push(String(operation.id));
+                                    localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
+                                }
+                            } else {
+                                console.error(`CarShop: Error updating car:`, error);
+                                failedCount++;
+                                failedOperations.push({...operation, error: error.message});
+                            }
+                            // Continue with next operation
                         }
                         break;
                         
@@ -541,6 +566,8 @@ const CarShop = () => {
                             
                             // Mark this ID as processed
                             processedIds.push(String(operation.id));
+                            successCount++;
+                            successfulOperations.push(operation);
                             
                             // Always clean up the deletedCarsRegistry
                             const updatedRegistry = deletedCarsRegistry.filter(id => id !== String(operation.id));
@@ -549,77 +576,79 @@ const CarShop = () => {
                             // If we get a 404, the car was already deleted
                             if (error.response && error.response.status === 404) {
                                 console.log(`CarShop: Car with ID ${operation.id} already deleted`);
+                                skippedCount++;
                                 // Still remove from deletedCarsRegistry as the goal was accomplished
                                 const updatedRegistry = deletedCarsRegistry.filter(id => id !== String(operation.id));
                                 localStorage.setItem('deletedCarsRegistry', JSON.stringify(updatedRegistry));
                             } else {
                                 console.error(`CarShop: Error deleting car:`, error);
-                                throw error;
+                                failedCount++;
+                                failedOperations.push({...operation, error: error.message});
                             }
+                            // Continue with next operation
                         }
                         break;
                         
                     default:
                         console.warn('CarShop: Unknown operation type:', operation.type);
+                        skippedCount++;
                 }
-                completedOperations++;
             } catch (error) {
                 console.error('CarShop: Failed to sync operation:', operation, error);
-                
-                // Only count non-404 errors as failures that should stop the sync
-                if (!(error.response && error.response.status === 404 && operation.type === 'DELETE')) {
-                    failed = true;
-                    break;
-                } else {
-                    // For 404 on DELETE, we'll count it as completed
-                    completedOperations++;
-                }
+                failedCount++;
+                failedOperations.push({...operation, error: error.message});
+                // Continue with next operation
             }
         }
         
-        // Remove processed operations from queue
-        if (completedOperations > 0) {
-            const remainingQueue = updatedQueue.slice(completedOperations);
-            setOfflineQueue(remainingQueue);
-            
-            // Update the queue in localStorage
-            localStorage.setItem('offlineOperationsQueue', JSON.stringify(remainingQueue));
-            console.log(`CarShop: Removed ${completedOperations} completed operations from queue`);
-        }
+        // Remove successful and skipped operations from queue
+        const remainingQueue = prioritizedQueue.filter(op => {
+            // Keep operations that failed
+            return failedOperations.some(failedOp => 
+                failedOp.type === op.type && 
+                failedOp.id === op.id &&
+                failedOp.timestamp === op.timestamp
+            );
+        });
         
-        if (failed) {
-            setSyncStatus(`Synced ${completedOperations} of ${updatedQueue.length} changes. Some operations failed.`);
-            console.log(`CarShop: Sync partially failed, completed ${completedOperations} of ${updatedQueue.length}`);
-        } else if (completedOperations === updatedQueue.length) {
+        // Update the queue in localStorage with only failed operations
+        setOfflineQueue(remainingQueue);
+        localStorage.setItem('offlineOperationsQueue', JSON.stringify(remainingQueue));
+        
+        // Display status message
+        const totalAttempted = successCount + failedCount + skippedCount;
+        if (failedCount > 0) {
+            setSyncStatus(`Synced ${successCount} of ${totalAttempted} changes. ${failedCount} operations failed. Failed operations will be retried later.`);
+            console.log(`CarShop: Sync partially succeeded, ${successCount} succeeded, ${failedCount} failed, ${skippedCount} skipped`);
+            console.log(`CarShop: Failed operations:`, failedOperations);
+        } else {
             setSyncStatus('All changes synced successfully!');
             setOfflineQueue([]);
-            
-            // Explicitly clear the queue in localStorage 
             localStorage.setItem('offlineOperationsQueue', JSON.stringify([]));
             console.log('CarShop: All changes synced successfully');
-            
-            // Remove temp-item styling from all cards after sync
-            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-            cachedData.cars = cachedData.cars.map(car => ({
-                ...car,
-                _isTemp: false // Remove the temp flag
-            }));
-            localStorage.setItem('cachedCars', JSON.stringify(cachedData));
-            
-            // Force refresh the UI to immediately remove pending frames
-            setCars(prevCars => prevCars.map(car => ({
-                ...car,
-                _isTemp: false // Also update the current state, not just the cache
-            })));
-            
-            // Clear status after a delay
-            setTimeout(() => {
-                setSyncStatus(null);
-            }, 3000);
-            
-            // Refresh data after syncing to get updated IDs from server
-            refreshCars();
         }
+        
+        // Remove temp-item styling from all cards after sync
+        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+        cachedData.cars = cachedData.cars.map(car => ({
+            ...car,
+            _isTemp: remainingQueue.some(op => op.id === car.id) // Only keep temp flag for failed operations
+        }));
+        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+        
+        // Force refresh the UI to immediately update pending frames
+        setCars(prevCars => prevCars.map(car => ({
+            ...car,
+            _isTemp: remainingQueue.some(op => op.id === car.id)
+        })));
+        
+        // Clear status after a delay
+        setTimeout(() => {
+            setSyncStatus(null);
+        }, 5000);
+        
+        // Refresh data after syncing to get updated IDs from server
+        refreshCars();
     }, [isOnline, serverAvailable, refreshCars]);
 
     // Network status event listeners
@@ -801,6 +830,43 @@ const CarShop = () => {
         return () => clearInterval(interval);
     }, [isGenerating]);
 
+    // Function to clear the deletedCarsRegistry
+    const clearDeletedCarsRegistry = () => {
+        localStorage.removeItem('deletedCarsRegistry');
+        console.log('CarShop: Deleted cars registry cleared');
+        // Refresh cars
+        fetchCars();
+    };
+    
+    // Function to clear the offline queue
+    const clearOfflineQueue = () => {
+        localStorage.removeItem('offlineOperationsQueue');
+        console.log('CarShop: Offline operations queue cleared');
+        
+        // Also update any temporary styling on cached cars
+        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+        cachedData.cars = cachedData.cars.map(car => ({
+            ...car,
+            _isTemp: false // Remove all temp flags
+        }));
+        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+        
+        // Update UI to remove temporary styling
+        setCars(prevCars => prevCars.map(car => ({
+            ...car,
+            _isTemp: false
+        })));
+        
+        // Force refresh of UI state
+        setSyncStatus('All pending changes cleared');
+        setTimeout(() => {
+            setSyncStatus(null);
+        }, 3000);
+        
+        // Return an empty array to represent the cleared queue
+        setOfflineQueue([]);
+    };
+
     const toggleGeneration = () => {
         setIsGenerating((prev) => !prev);
     };
@@ -835,8 +901,14 @@ const CarShop = () => {
                                     Sync Now
                                 </button>
                             )}
+                            <button className="reset-button" onClick={clearOfflineQueue} title="Clear all pending changes">
+                                Clear Changes
+                            </button>
                         </>
                     )}
+                    <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
+                        Restore All Cars
+                    </button>
                 </div>
                 
                 {/* Real-time update notification */}

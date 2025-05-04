@@ -9,8 +9,8 @@ const Car = sequelize.define('Car', {
     autoIncrement: true
   },
   make: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
+    type: DataTypes.STRING,
+    allowNull: true  // Make this optional so both old and new records work
   },
   model: { 
     type: DataTypes.STRING, 
@@ -36,6 +36,14 @@ const Car = sequelize.define('Car', {
   },
   img: { 
     type: DataTypes.STRING 
+  },
+  brandId: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // Make this optional during migration
+    references: {
+      model: 'Brands', // Note Sequelize pluralizes table names
+      key: 'id'
+    }
   }
 }, {
   timestamps: true
