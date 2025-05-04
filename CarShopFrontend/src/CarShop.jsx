@@ -118,7 +118,15 @@ const CarShop = () => {
         const params = new URLSearchParams();
         
         params.append("page", currentPage.toString());
-        params.append("itemsPerPage", itemsPerPage === Infinity ? -1 : itemsPerPage.toString()); // Use -1 for unlimited
+        
+        // For unlimited option, use -1 as itemsPerPage
+        if (itemsPerPage === Infinity) {
+            params.append("itemsPerPage", "-1");
+            console.log("CarShop: Requesting unlimited cars");
+        } else {
+            params.append("itemsPerPage", itemsPerPage.toString());
+            console.log(`CarShop: Requesting ${itemsPerPage} cars per page`);
+        }
         
         if (sortMethod) {
             const [field, direction] = sortMethod.split('-');

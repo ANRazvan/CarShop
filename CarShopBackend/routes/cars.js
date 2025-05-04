@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { validateCarData } = require('../controllers/carController');
+const Car = require('../models/Car'); // Import the Car model
 
 // Setup multer for file uploads
 const storage = multer.diskStorage({
@@ -55,113 +56,62 @@ const upload = multer({
     }
 });
 
-// Import cars data and controller functions
-let { carsData, filterCars, getCars, getCarById, createCar, updateCar, deleteCar, populateCars } = require('../controllers/carController');
+// Import controller functions - use database controllers instead of in-memory data
+const { getCars, getCarById, createCar, updateCar, deleteCar, populateCars } = require('../controllers/carController');
 
-// GET all cars with pagination and filtering
-router.get('/', (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const itemsPerPage = parseInt(req.query.itemsPerPage) || 10;
-        const sortBy = req.query.sortBy;
-        const sortOrder = req.query.sortOrder;
-        const makeFilter = req.query.make ? req.query.make.split(',') : [];
-        const fuelTypeFilter = req.query.fuelType ? req.query.fuelType.split(',') : [];
-        const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
-        const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
-        const searchTerm = req.query.search || '';
-
-        // Filter cars based on criteria
-        let filteredCars = [...carsData.cars];
-
-        // Apply make filter
-        if (makeFilter.length > 0) {
-            filteredCars = filteredCars.filter(car => makeFilter.includes(car.make));
-        }
-
-        // Apply fuel type filter
-        if (fuelTypeFilter.length > 0) {
-            filteredCars = filteredCars.filter(car => fuelTypeFilter.includes(car.fuelType));
-        }
-
-        // Apply price range filter
-        if (minPrice !== null) {
-            filteredCars = filteredCars.filter(car => parseFloat(car.price) >= minPrice);
-        }
-        if (maxPrice !== null) {
-            filteredCars = filteredCars.filter(car => parseFloat(car.price) <= maxPrice);
-        }
-
-        // Apply search term filter (check in make, model, and description)
-        if (searchTerm) {
-            const lowerSearchTerm = searchTerm.toLowerCase();
-            filteredCars = filteredCars.filter(car => {
-                return (
-                    (car.make && car.make.toLowerCase().includes(lowerSearchTerm)) ||
-                    (car.model && car.model.toLowerCase().includes(lowerSearchTerm)) ||
-                    (car.description && car.description.toLowerCase().includes(lowerSearchTerm)) ||
-                    (car.keywords && car.keywords.toLowerCase().includes(lowerSearchTerm))
-                );
-            });
-        }
-
-        // Apply sorting
-        if (sortBy && sortOrder) {
-            filteredCars.sort((a, b) => {
-                // Convert string numbers to actual numbers for proper sorting
-                const valA = sortBy === 'price' || sortBy === 'year' ? parseFloat(a[sortBy]) : a[sortBy];
-                const valB = sortBy === 'price' || sortBy === 'year' ? parseFloat(b[sortBy]) : b[sortBy];
-                
-                // Handle case where values might be undefined
-                if (valA === undefined && valB === undefined) return 0;
-                if (valA === undefined) return 1;
-                if (valB === undefined) return -1;
-                
-                // Sort ascending or descending
-                if (sortOrder === 'asc') {
-                    return valA < valB ? -1 : valA > valB ? 1 : 0;
-                } else {
-                    return valA > valB ? -1 : valA < valB ? 1 : 0;
-                }
-            });
-        }
-
-        // Handle "unlimited" case (itemsPerPage = -1)
-        if (itemsPerPage === -1) {
-            return res.json({
-                cars: filteredCars,
-                totalPages: 1,
-                totalCars: filteredCars.length,
-            });
-        }
-
-        // Apply pagination
-        const startIndex = (page - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const paginatedCars = filteredCars.slice(startIndex, endIndex);
-
-        res.json({
-            cars: paginatedCars,
-            totalPages: Math.ceil(filteredCars.length / itemsPerPage),
-            totalCars: filteredCars.length,
-        });
-    } catch (error) {
-        console.error("Error fetching cars:", error);
-        res.status(500).json({ message: "Failed to fetch cars", error: error.message });
-    }
+// Debugging endpoint to check all cars (without pagination/filtering)
+router.get('/debug/all/cars', async (req, res) => {
+  try {
+    // Direct database query without any filtering or limits
+    const cars = await Car.findAll({
+      order: [['id', 'ASC']]
+    });
+    
+    // Check specifically for ID 14
+    const hasID14 = cars.some(car => car.id === 14);
+    
+    res.json({
+      message: "All cars retrieved",
+      totalCars: cars.length,
+      hasID14: hasID14,
+      cars: cars
+    });
+  } catch (error) {
+    console.error('Error retrieving all cars:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// GET car by ID
-router.get('/:id', (req, res) => {
+// Debugging endpoint to check for specific car by ID
+router.get('/debug/:id', async (req, res) => {
+  try {
     const carId = parseInt(req.params.id);
-    const car = carsData.cars.find(car => car.id === carId);
-
+    const car = await Car.findByPk(carId);
+    
     if (!car) {
-        return res.status(404).json({ message: "Car not found" });
+      return res.status(404).json({ 
+        message: "Car not found", 
+        id: carId,
+        exists: false 
+      });
     }
-
-    res.json(car);
+    
+    res.json({
+      message: "Car found",
+      exists: true,
+      car: car
+    });
+  } catch (error) {
+    console.error('Error finding car:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
+
+// GET all cars with pagination and filtering - use the database controller
+router.get('/', getCars);
+
+// GET car by ID - use the database controller
+router.get('/:id', getCarById);
 
 // POST generate random cars
 router.post('/generate/:count', (req, res) => {
@@ -175,146 +125,52 @@ router.post('/generate/:count', (req, res) => {
         }
         
         // Generate the requested number of cars
-        const generatedCars = populateCars(count);
-        
-        // Broadcast event about the new cars if the broadcast function is available
-        if (req.app.locals.broadcast) {
-            generatedCars.forEach(car => {
-                req.app.locals.broadcast({
-                    type: 'CAR_CREATED',
-                    data: car,
-                    timestamp: Date.now()
+        populateCars(count)
+            .then(generatedCars => {
+                // Broadcast event about the new cars if the broadcast function is available
+                if (req.app.locals.broadcast) {
+                    generatedCars.forEach(car => {
+                        req.app.locals.broadcast({
+                            type: 'CAR_CREATED',
+                            data: car,
+                            timestamp: Date.now()
+                        });
+                    });
+                }
+                
+                res.status(201).json({
+                    message: `Successfully generated ${count} cars`,
+                    carsGenerated: count,
+                    totalCars: generatedCars.length,
+                    generatedCars
                 });
+            })
+            .catch(error => {
+                console.error("Error generating cars:", error);
+                res.status(500).json({ message: "Failed to generate cars", error: error.message });
             });
-        }
-        
-        res.status(201).json({
-            message: `Successfully generated ${count} cars`,
-            carsGenerated: count,
-            totalCars: carsData.cars.length,
-            generatedCars
-        });
     } catch (error) {
         console.error("Error generating cars:", error);
         res.status(500).json({ message: "Failed to generate cars", error: error.message });
     }
 });
 
-// // Add this debug endpoint to CarShopBackend/routes/cars.js
-// router.get('/debug', (req, res) => { 
-//   // Return car data length and first few items
-//   res.json({
-//       totalCars: carsData.cars.length,
-//       firstFew: carsData.cars.slice(0, 3)
-//   });
-// });
+// POST create a new car - use the database controller
+router.post('/', upload.single('image'), createCar);
 
-// POST create a new car
-router.post('/', upload.single('image'), (req, res) => {
-    try {
-        // Extract car data from request
-        const { make, model, year, fuelType, price, description, keywords } = req.body;
-        let img = '';
-        
-        if (req.file) {
-            img = req.file.filename;
-        }
-        
-        // Validate car data
-        const carData = { make, model, year, fuelType, price, description, keywords, img };
-        const validation = validateCarData(carData);
-        
-        if (!validation.valid) {
-            return res.status(400).json({ errors: validation.errors });
-        }
-        
-        // Generate a new ID (simple increment for now)
-        const newId = carsData.cars.reduce((maxId, car) => Math.max(maxId, car.id), 0) + 1;
-        
-        // Create the new car object
-        const newCar = {
-            id: newId,
-            ...carData
-        };
-        
-        // Add to the cars array
-        carsData.cars.push(newCar);
-        
-        // Return the created car
-        res.status(201).json(newCar);
-    } catch (error) {
-        console.error("Error creating car:", error);
-        res.status(500).json({ message: "Failed to create car", error: error.message });
-    }
-});
+// PUT update an existing car - use the database controller
+router.put('/:id', upload.single('image'), updateCar);
 
-// PUT update an existing car
-router.put('/:id', upload.single('image'), (req, res) => {
-    try {
-        const carId = parseInt(req.params.id);
-        const carIndex = carsData.cars.findIndex(car => car.id === carId);
-
-        if (carIndex === -1) {
-            return res.status(404).json({ message: "Car not found" });
-        }
-
-        const updatedCar = {
-            ...carsData.cars[carIndex],
-            ...req.body,
-        };
-
-        if (req.file) {
-            updatedCar.img = req.file.filename;
-        }
-
-        carsData.cars[carIndex] = updatedCar; // Ensure this line is updating the array
-        res.json(updatedCar);
-    } catch (error) {
-        console.error("Error updating car:", error);
-        res.status(500).json({ message: "Failed to update car", error: error.message });
-    }
-});
-
-// DELETE car by ID
-router.delete('/:id', (req, res) => {
-    try {
-        const carId = parseInt(req.params.id);
-        
-        // Find the car by ID
-        const carIndex = carsData.cars.findIndex(car => car.id === carId);
-        
-        if (carIndex === -1) {
-            return res.status(404).json({ message: "Car not found" });
-        }
-        
-        // Remove car from array
-        const deletedCar = carsData.cars.splice(carIndex, 1)[0];
-        
-        // Clean up image file if it exists
-        if (deletedCar.img) {
-            const imagePath = path.join(__dirname, '../uploads', deletedCar.img);
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
-            }
-        }
-        
-        res.json({ 
-            message: "Car deleted successfully",
-            id: carId
-        });
-    } catch (error) {
-        console.error("Error deleting car:", error);
-        res.status(500).json({ message: "Failed to delete car", error: error.message });
-    }
-});
+// DELETE car by ID - use the database controller
+router.delete('/:id', deleteCar);
 
 // POST upload video for a car
-router.post('/:id/video', upload.single('video'), (req, res) => {
+router.post('/:id/video', upload.single('video'), async (req, res) => {
     try {
         const carId = parseInt(req.params.id);
-        const carIndex = carsData.cars.findIndex(car => car.id === carId);
+        const car = await Car.findByPk(carId);
         
-        if (carIndex === -1) {
+        if (!car) {
             return res.status(404).json({ message: "Car not found" });
         }
         
@@ -323,19 +179,19 @@ router.post('/:id/video', upload.single('video'), (req, res) => {
         }
         
         // If there was a previous video, delete it
-        if (carsData.cars[carIndex].video) {
-            const oldVideoPath = path.join(__dirname, '../uploads/videos', carsData.cars[carIndex].video);
+        if (car.video) {
+            const oldVideoPath = path.join(__dirname, '../uploads/videos', car.video);
             if (fs.existsSync(oldVideoPath)) {
                 fs.unlinkSync(oldVideoPath);
             }
         }
         
         // Update car with new video
-        carsData.cars[carIndex].video = req.file.filename;
+        await car.update({ video: req.file.filename });
         
         res.json({ 
             message: "Video uploaded successfully",
-            car: carsData.cars[carIndex]
+            car: car
         });
     } catch (error) {
         console.error("Error uploading video:", error);
@@ -344,28 +200,28 @@ router.post('/:id/video', upload.single('video'), (req, res) => {
 });
 
 // DELETE video for a car
-router.delete('/:id/video', (req, res) => {
+router.delete('/:id/video', async (req, res) => {
     try {
         const carId = parseInt(req.params.id);
-        const carIndex = carsData.cars.findIndex(car => car.id === carId);
+        const car = await Car.findByPk(carId);
         
-        if (carIndex === -1) {
+        if (!car) {
             return res.status(404).json({ message: "Car not found" });
         }
         
         // If the car has a video, delete it
-        if (carsData.cars[carIndex].video) {
-            const videoPath = path.join(__dirname, '../uploads/videos', carsData.cars[carIndex].video);
+        if (car.video) {
+            const videoPath = path.join(__dirname, '../uploads/videos', car.video);
             if (fs.existsSync(videoPath)) {
                 fs.unlinkSync(videoPath);
             }
             
             // Remove video reference from car
-            carsData.cars[carIndex].video = null;
+            await car.update({ video: null });
             
             res.json({ 
                 message: "Video deleted successfully",
-                car: carsData.cars[carIndex]
+                car: car
             });
         } else {
             res.status(404).json({ message: "No video found for this car" });

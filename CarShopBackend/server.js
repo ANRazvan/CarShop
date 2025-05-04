@@ -1,4 +1,3 @@
-// filepath: CarShopBackend/server.js
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -7,20 +6,23 @@ const fs = require('fs');
 const { WebSocketServer } = require('ws');
 const http = require('http');
 const carRoutes = require('./routes/cars');
+const { connectDB, sequelize } = require('./config/pgdb');
+const Car = require('./models/Car');
+require('dotenv').config();
 
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 
 // Create HTTP server
 const server = http.createServer(app);
 
 // Set appropriate size limits for request payloads
-app.use(express.json({ limit: '2048mb' })); // Allow larger JSON payloads (1050MB)
-app.use(express.urlencoded({ extended: true, limit: '2048mb' })); // Allow larger form data
+app.use(express.json({ limit: '2048mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2048mb' }));
 
 // Configure CORS with explicit options
 app.use(cors({
-    origin: '*', // Allow all origins - in production, specify your frontend URL
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -28,8 +30,7 @@ app.use(cors({
 // Setup WebSocket server with explicit path
 const wss = new WebSocketServer({ 
     server,
-    path: '/ws' // Explicitly define the path
-    // Remove the perMessageDeflate options which can cause issues with some clients
+    path: '/ws'
 });
 
 // Store connected clients
@@ -180,19 +181,36 @@ app.use('/api/cars', (req, res, next) => {
     next();
 }, carRoutes);
 
-// Start the server
-server.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`WebSocket server is ready`);
+// Connect to PostgreSQL database and start the server
+connectDB()
+  .then(async () => {
+    // Sync models with database
+    await sequelize.sync();
+    console.log('Database synced');
     
-    // Initialize the database with some cars if empty
-    const { carsData, populateCars } = require('./controllers/carController');
-    if (carsData.cars.length === 0) {
-        // Generate 20 random cars on startup
-        const numCarsToGenerate = 20;
-        const generatedCars = populateCars(numCarsToGenerate);
-        console.log(`Generated ${generatedCars.length} cars on startup`);
-    } else {
-        console.log(`Server started with ${carsData.cars.length} existing cars`);
-    }
-});
+    // Start the server after database connection is established
+    server.listen(port, async () => {
+      console.log(`Server running on port ${port}`);
+      console.log(`WebSocket server is ready`);
+      
+      // Initialize the database with some cars if empty
+      try {
+        const carCount = await Car.count();
+        if (carCount === 0) {
+          // Generate 20 random cars on startup
+          const numCarsToGenerate = 20;
+          const { populateCars } = require('./controllers/carController');
+          const generatedCars = await populateCars(numCarsToGenerate);
+          console.log(`Generated ${generatedCars.length} cars on startup`);
+        } else {
+          console.log(`Server started with ${carCount} existing cars`);
+        }
+      } catch (error) {
+        console.error('Error initializing database:', error);
+      }
+    });
+  })
+  .catch(err => {
+    console.error('Failed to connect to database:', err);
+    process.exit(1);
+  });

@@ -1,15 +1,44 @@
 // filepath: CarShopBackend/models/Car.js
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/pgdb');
 
-const carSchema = new mongoose.Schema({
-  make: { type: String, required: true },
-  model: { type: String, required: true },
-  year: { type: Number, required: true },
-  keywords: { type: String },
-  description: { type: String },
-  fuelType: { type: String, required: true },
-  price: { type: Number, required: true },
-  img: { type: String },
+const Car = sequelize.define('Car', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  make: { 
+    type: DataTypes.STRING, 
+    allowNull: false 
+  },
+  model: { 
+    type: DataTypes.STRING, 
+    allowNull: false 
+  },
+  year: { 
+    type: DataTypes.INTEGER, 
+    allowNull: false 
+  },
+  keywords: { 
+    type: DataTypes.STRING 
+  },
+  description: { 
+    type: DataTypes.TEXT 
+  },
+  fuelType: { 
+    type: DataTypes.STRING, 
+    allowNull: false 
+  },
+  price: { 
+    type: DataTypes.DECIMAL(10, 2), 
+    allowNull: false 
+  },
+  img: { 
+    type: DataTypes.STRING 
+  }
+}, {
+  timestamps: true
 });
 
-module.exports = mongoose.model('Car', carSchema);
+module.exports = Car;
