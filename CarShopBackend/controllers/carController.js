@@ -1,8 +1,10 @@
-// filepath: CarShopBackend/controllers/carController.js
-const { faker } = require('@faker-js/faker'); // Import faker
+const { faker } = require('@faker-js/faker'); 
 const fs = require('fs');
 const path = require('path');
-const carsData = require('../data/cars'); // Import the cars data
+const { Op } = require('sequelize');
+const Car = require('../models/Car');
+const { sequelize } = require('../config/pgdb'); // Import the sequelize instance
+const carsData = require('../data/cars'); // Keep for reference data
 
 // Car makes and models mapping
 const carModels = {
@@ -85,11 +87,12 @@ const generateCars = (count) => {
   return newCars;
 };
 
-// Generate cars and add them to the data store
-const populateCars = (count) => {
+// Populate database with generated cars
+const populateCars = async (count) => {
   const generatedCars = generateCars(count);
-  carsData.cars = [...carsData.cars, ...generatedCars];
-  return generatedCars;
+  // Create cars in database using Sequelize
+  const createdCars = await Car.bulkCreate(generatedCars);
+  return createdCars;
 };
 
 // Validate car data
@@ -123,57 +126,262 @@ const validateCarData = (car) => {
 };
 
 // Get paginated cars with optional filters
-const getCars = (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  
-  // Extract filter parameters including arrays for make and fuelType
-  const make = req.query.make ? req.query.make.split(',') : null;
-  const fuelType = req.query.fuelType ? req.query.fuelType.split(',') : null;
-  const search = req.query.search || '';
-  
-  // Apply filters
-  let filteredCars = filterCars({
-    cars: carsData.cars,
-    make: make,
-    model: req.query.model,
-    minYear: req.query.minYear,
-    maxYear: req.query.maxYear,
-    minPrice: req.query.minPrice,
-    maxPrice: req.query.maxPrice,
-    fuelType: fuelType,
-    search: search
-  });
-  
-  // Sort if requested
-  if (req.query.sortBy) {
-    const sortBy = req.query.sortBy;
-    const sortOrder = req.query.sortOrder || 'asc';
+const getCars = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    // Check for itemsPerPage parameter first, then fall back to limit
+    let limit = parseInt(req.query.itemsPerPage) || parseInt(req.query.limit) || 10;
     
-    filteredCars = sortCars(filteredCars, sortBy, sortOrder);
+    // Handle the special case for unlimited items
+    const isUnlimited = limit === -1;
+    const useLimit = isUnlimited ? null : limit;
+    
+    // For unlimited query, we don't want any offset
+    const offset = isUnlimited ? 0 : (page - 1) * limit;
+    
+    // Extract filter parameters
+    const make = req.query.make ? req.query.make.split(',') : null;
+    const fuelType = req.query.fuelType ? req.query.fuelType.split(',') : null;
+    const search = req.query.search || '';
+    
+    // Build the query conditions
+    const whereConditions = {};
+    
+    // Filter by make
+    if (make && make.length > 0) {
+      whereConditions.make = { [Op.in]: make };
+    }
+    
+    // Filter by model
+    if (req.query.model) {
+      whereConditions.model = { [Op.iLike]: `%${req.query.model}%` };
+    }
+    
+    // Filter by year range
+    if (req.query.minYear || req.query.maxYear) {
+      whereConditions.year = {};
+      if (req.query.minYear) {
+        whereConditions.year[Op.gte] = parseInt(req.query.minYear);
+      }
+      if (req.query.maxYear) {
+        whereConditions.year[Op.lte] = parseInt(req.query.maxYear);
+      }
+    }
+    
+    // Filter by price range
+    if (req.query.minPrice || req.query.maxPrice) {
+      whereConditions.price = {};
+      if (req.query.minPrice) {
+        whereConditions.price[Op.gte] = parseFloat(req.query.minPrice);
+      }
+      if (req.query.maxPrice) {
+        whereConditions.price[Op.lte] = parseFloat(req.query.maxPrice);
+      }
+    }
+    
+    // Filter by fuel type
+    if (fuelType && fuelType.length > 0) {
+      whereConditions.fuelType = { [Op.in]: fuelType };
+    }
+    
+    // Filter by search term
+    if (search && search.trim() !== '') {
+      whereConditions[Op.or] = [
+        { make: { [Op.iLike]: `%${search}%` } },
+        { model: { [Op.iLike]: `%${search}%` } },
+        { description: { [Op.iLike]: `%${search}%` } },
+        { keywords: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+    
+    // Set up sorting
+    let order = [];
+    if (req.query.sortBy) {
+      const sortBy = req.query.sortBy;
+      const sortOrder = req.query.sortOrder || 'ASC';
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['id', 'ASC']);
+    }
+    
+    // Create the query options object
+    const queryOptions = {
+      where: whereConditions,
+      order,
+      offset
+    };
+    
+    // Only add the limit if it's not for unlimited items
+    if (useLimit !== null) {
+      queryOptions.limit = useLimit;
+    }
+    
+    // Log the query we're about to execute
+    console.log('Executing car query with options:', JSON.stringify({
+      page,
+      limit: useLimit,
+      offset,
+      isUnlimited,
+      sortBy: req.query.sortBy,
+      sortOrder: req.query.sortOrder
+    }));
+    
+    // For debugging - check if car 14 exists at all
+    try {
+      const specialCar = await Car.findByPk(14);
+      console.log("DEBUGGING - Does car 14 exist?", specialCar ? "YES" : "NO");
+      if (specialCar) {
+        console.log("DEBUGGING - Car 14 details:", JSON.stringify(specialCar.toJSON()));
+      }
+    } catch (err) {
+      console.error("Error checking car 14:", err);
+    }
+    
+    // Query the database with all filters applied
+    const { count, rows } = await Car.findAndCountAll(queryOptions);
+    
+    // Log detailed information about the results
+    console.log(`Found ${rows.length} cars out of ${count} total matches`);
+    if (rows.length > 0) {
+      console.log(`First car ID: ${rows[0].id}, Last car ID: ${rows[rows.length-1].id}`);
+      console.log(`Car IDs in results: ${rows.map(car => car.id).join(', ')}`);
+    }
+    
+    // Check specifically for ID 14
+    const hasID14 = rows.some(car => car.id === 14);
+    console.log(`Does result set include car with ID 14? ${hasID14}`);
+    
+    // Get unique makes for filtering options (using Sequelize distinct query)
+    const makes = await Car.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('make')), 'make']],
+      raw: true
+    });
+    
+    const totalPages = isUnlimited ? 1 : Math.ceil(count / limit);
+    
+    res.json({
+      cars: rows,
+      currentPage: page,
+      totalPages,
+      totalCars: count,
+      makes: makes.map(m => m.make),
+      unlimited: isUnlimited
+    });
+  } catch (error) {
+    console.error('Error fetching cars:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  
-  // Calculate pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  const totalPages = Math.ceil(filteredCars.length / limit);
-  
-  // Get the requested page of cars
-  const paginatedCars = filteredCars.slice(startIndex, endIndex);
-  
-  // Get unique makes for filtering options
-  const makes = [...new Set(carsData.cars.map(car => car.make))];
-  
-  res.json({
-    cars: paginatedCars,
-    currentPage: page,
-    totalPages,
-    totalCars: filteredCars.length,
-    makes: makes // Return available makes for the frontend
-  });
 };
 
-// Filter cars based on query parameters
+// Get car by ID
+const getCarById = async (req, res) => {
+  try {
+    const carId = parseInt(req.params.id);
+    const car = await Car.findByPk(carId);
+    
+    if (!car) {
+      return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    res.json(car);
+  } catch (error) {
+    console.error('Error fetching car:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Create new car
+const createCar = async (req, res) => {
+  try {
+    const carData = {
+      ...req.body,
+      img: req.file ? req.file.filename : 'default-car.jpg'
+    };
+    
+    // Validate car data
+    const validation = validateCarData(carData);
+    if (!validation.valid) {
+      return res.status(400).json({ errors: validation.errors });
+    }
+    
+    // Create car in database
+    const newCar = await Car.create(carData);
+    
+    res.status(201).json(newCar);
+  } catch (error) {
+    console.error('Error creating car:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update car
+const updateCar = async (req, res) => {
+  try {
+    const carId = parseInt(req.params.id);
+    const car = await Car.findByPk(carId);
+    
+    if (!car) {
+      return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    // Update car data
+    const updatedData = {
+      ...req.body
+    };
+    
+    // If there's a new image, update the img property
+    if (req.file) {
+      updatedData.img = req.file.filename;
+    }
+    
+    // Convert price to number if it's a string
+    if (updatedData.price && typeof updatedData.price === 'string') {
+      updatedData.price = parseFloat(updatedData.price);
+    }
+    
+    // Validate the updated car
+    const validation = validateCarData({...car.toJSON(), ...updatedData});
+    if (!validation.valid) {
+      return res.status(400).json({ errors: validation.errors });
+    }
+    
+    // Update in database
+    await car.update(updatedData);
+    
+    // Get the updated car
+    const updatedCar = await Car.findByPk(carId);
+    
+    res.json(updatedCar);
+  } catch (error) {
+    console.error('Error updating car:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Delete car
+const deleteCar = async (req, res) => {
+  try {
+    const carId = parseInt(req.params.id);
+    const car = await Car.findByPk(carId);
+    
+    if (!car) {
+      return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    // Delete from database
+    await car.destroy();
+    
+    res.json({ 
+      message: 'Car deleted successfully',
+      id: carId
+    });
+  } catch (error) {
+    console.error('Error deleting car:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// These utility functions can be kept as they help with testing
 const filterCars = ({ cars, make, model, minYear, maxYear, minPrice, maxPrice, fuelType, search }) => {
   return cars.filter(car => {
     // Filter by make (now supports array of makes)
@@ -224,7 +432,6 @@ const filterCars = ({ cars, make, model, minYear, maxYear, minPrice, maxPrice, f
   });
 };
 
-// Add a sorting function
 const sortCars = (cars, sortBy, sortOrder) => {
   return [...cars].sort((a, b) => {
     let comparison = 0;
@@ -242,113 +449,6 @@ const sortCars = (cars, sortBy, sortOrder) => {
     }
     
     return sortOrder === 'desc' ? -comparison : comparison;
-  });
-};
-
-// Get car by ID
-const getCarById = (req, res) => {
-  const carId = parseInt(req.params.id);
-  const car = carsData.cars.find(c => c.id === carId);
-  
-  if (!car) {
-    return res.status(404).json({ error: 'Car not found' });
-  }
-  
-  res.json(car);
-};
-
-// Create new car
-const createCar = (req, res) => {
-  const carData = {
-    ...req.body,
-    img: req.file ? req.file.filename : 'default-car.jpg'
-  };
-  
-  // Validate car data
-  const validation = validateCarData(carData);
-  if (!validation.valid) {
-    return res.status(400).json({ errors: validation.errors });
-  }
-  
-  // Create new car with unique ID
-  const newCar = {
-    id: carsData.nextId++,
-    ...carData
-  };
-  
-  // Add to "database"
-  carsData.cars.push(newCar);
-  
-  // Broadcast event is now handled in the middleware layer in server.js
-  // This keeps the controller focused on data operations
-  
-  res.status(201).json(newCar);
-};
-
-// Update car
-const updateCar = (req, res) => {
-  const carId = parseInt(req.params.id);
-  const carIndex = carsData.cars.findIndex(c => c.id === carId);
-  
-  if (carIndex === -1) {
-    return res.status(404).json({ error: 'Car not found' });
-  }
-  
-  try {
-    // Update car data
-    const updatedCar = {
-      ...carsData.cars[carIndex],
-      ...req.body
-    };
-    
-    // If there's a new image, update the img property
-    if (req.file) {
-      updatedCar.img = req.file.filename;
-    }
-    
-    // Convert price to number if it's a string
-    if (updatedCar.price && typeof updatedCar.price === 'string') {
-      updatedCar.price = parseInt(updatedCar.price);
-    }
-    
-    // Validate the updated car
-    const validation = validateCarData(updatedCar);
-    if (!validation.valid) {
-      return res.status(400).json({ errors: validation.errors });
-    }
-    
-    // Save updated car
-    carsData.cars[carIndex] = updatedCar;
-    
-    // Broadcast event is now handled in the middleware layer in server.js
-    
-    res.json(updatedCar);
-  } catch (error) {
-    console.error('Error updating car:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// Delete car
-const deleteCar = (req, res) => {
-  const carId = parseInt(req.params.id);
-  const carIndex = carsData.cars.findIndex(c => c.id === carId);
-  
-  if (carIndex === -1) {
-    return res.status(404).json({ error: 'Car not found' });
-  }
-  
-  // Get a reference to the car before deletion (for WebSocket event)
-  const deletedCar = carsData.cars[carIndex];
-  
-  // Remove car from "database"
-  carsData.cars.splice(carIndex, 1);
-  
-  // Broadcast event is now handled in the middleware layer in server.js
-  
-  res.json({ 
-    message: 'Car deleted successfully',
-    id: carId
   });
 };
 
