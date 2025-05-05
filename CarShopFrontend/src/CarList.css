@@ -113,31 +113,62 @@ body {
 }
 
 /* Styles for the dropdowns */
+.controls-wrapper {
+    padding: 0 1rem;
+    margin-bottom: 1rem;
+}
+
 .controls {
     display: flex;
-    margin-bottom: 1rem;
-    padding: 0 1rem;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 2rem;
+    background: #f9f9f9;
+    padding: 1rem;
+    border-radius: 5px;
+    border: 1px solid #eee;
 }
 
-.controls label {
+.control-item {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-right: 1rem;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.controls select {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
+.control-item label {
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.control-item select {
+    padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
     background-color: #fff;
     cursor: pointer;
-    transition: 0.3s;
+    min-width: 150px;
 }
 
-.controls select:hover {
+.control-item select:hover:not(:disabled) {
     border-color: #007bff;
+}
+
+.control-item select:disabled {
+    background-color: #f1f1f1;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.filter-disabled-message {
+    font-size: 0.8rem;
+    color: #dc3545;
+    margin-left: 0.5rem;
+}
+
+.disabled-appearance {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* Price category styles */

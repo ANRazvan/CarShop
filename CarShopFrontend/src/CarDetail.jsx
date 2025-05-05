@@ -250,7 +250,7 @@ const CarDetail = () => {
             )}
 
             <div className="car-main">
-                <imgx
+                <img
                     src={car.img ? 
                         (car.img.startsWith('data:') 
                             ? car.img // Use Base64 data directly

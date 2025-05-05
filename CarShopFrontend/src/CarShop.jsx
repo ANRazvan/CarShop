@@ -886,41 +886,10 @@ const CarShop = () => {
                         </button>
                     </div>
                     <div className="main-content">
-                {/* Network Status Indicator */}
-                <div className={`network-status ${!isOnline ? 'offline' : !serverAvailable ? 'server-down' : 'online'}`}>
-                    {!isOnline ? 'You are offline - Only basic operations available' : 
-                     !serverAvailable ? 'Server is unavailable - Only basic operations available' : 
-                     'Online'}
-                    {getOfflineQueue().length > 0 && (
-                        <>
-                            <span className="pending-changes">  
-                                {getOfflineQueue().length} pending changes
-                            </span>
-                            {isOnline && serverAvailable && (
-                                <button className="sync-button" onClick={syncOfflineChanges}>
-                                    Sync Now
-                                </button>
-                            )}
-                            <button className="reset-button" onClick={clearOfflineQueue} title="Clear all pending changes">
-                                Clear Changes
-                            </button>
-                        </>
-                    )}
-                    <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
-                        Restore All Cars
-                    </button>
-                </div>
-                
                 {/* Real-time update notification */}
                 {realtimeUpdateReceived && (
                     <div className="realtime-notification">
                         Real-time update received! 
-                    </div>
-                )}
-                
-                {syncStatus && (
-                    <div className="sync-status">
-                        {syncStatus}
                     </div>
                 )}
                 

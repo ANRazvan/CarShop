@@ -116,38 +116,46 @@ const CarListComponent = ({
                 </div>
             )}
             <Statistics cars={cars} />
-            <div className="controls">
-                <div className="pagination-controls">
-                    <select 
-                        value={itemsPerPage === Infinity ? "unlimited" : itemsPerPage} 
-                        onChange={handleItemsPerPageChange}
-                        className={disableSortAndFilter ? "disabled-appearance" : ""}
-                    >
-                        <option value={4}>4</option>
-                        <option value={8}>8</option>
-                        <option value={12}>12</option>
-                        <option value={16}>16</option>
-                        <option value="unlimited">Unlimited</option>
-                    </select>
-                </div>
-                <div className="sort-controls">
-                    <select 
-                        value={sortMethod} 
-                        onChange={handleSortMethodChange}
-                        disabled={disableSortAndFilter}
-                    >
-                        <option value="">Sort by...</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="year-asc">Year (Old to New)</option>
-                        <option value="year-desc">Year (New to Old)</option>
-                    </select>
+            
+            <div className="controls-wrapper">
+                <div className="controls">
+                    <div className="control-item">
+                        <label htmlFor="itemsPerPage">Items per page:</label>
+                        <select 
+                            id="itemsPerPage"
+                            value={itemsPerPage === Infinity ? "unlimited" : itemsPerPage} 
+                            onChange={handleItemsPerPageChange}
+                            className={disableSortAndFilter ? "disabled-appearance" : ""}
+                        >
+                            <option value={4}>4</option>
+                            <option value={8}>8</option>
+                            <option value={12}>12</option>
+                            <option value={16}>16</option>
+                            <option value="unlimited">Unlimited</option>
+                        </select>
+                    </div>
                     
-                    {disableSortAndFilter && (
-                        <div className="filter-disabled-message">
-                            Sorting is disabled in offline mode
-                        </div>
-                    )}
+                    <div className="control-item">
+                        <label htmlFor="sortMethod">Sort by:</label>
+                        <select 
+                            id="sortMethod"
+                            value={sortMethod} 
+                            onChange={handleSortMethodChange}
+                            disabled={disableSortAndFilter}
+                        >
+                            <option value="">Default</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="year-asc">Year (Old to New)</option>
+                            <option value="year-desc">Year (New to Old)</option>
+                        </select>
+                        
+                        {disableSortAndFilter && (
+                            <div className="filter-disabled-message">
+                                Sorting is disabled in offline mode
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

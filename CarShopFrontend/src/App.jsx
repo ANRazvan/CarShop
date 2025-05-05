@@ -9,6 +9,12 @@ import CarDetail from './CarDetail.jsx'
 import AddCar from "./AddCar.jsx";
 import UpdateCar from './UpdateCar.jsx';
 import CarOperationsContext from './CarOperationsContext.jsx';
+// Import brand-related components
+import BrandList from './BrandList.jsx';
+import BrandDetail from './BrandDetail.jsx';
+import AddBrand from './AddBrand.jsx';
+import UpdateBrand from './UpdateBrand.jsx';
+import { BrandOperationsProvider } from './BrandOperationsContext.jsx';
 import config from "./config.js";
 
 // Queue for storing offline operations
@@ -479,16 +485,26 @@ function App() {
 
     return (
         <CarOperationsContext.Provider value={carOperations}>
-            <Router>
-                <Navbar wsStatus={wsConnectionStatus} />
-                <Routes>
-                    <Route path="/" element={<CarShop />} />
-                    <Route path="/CarDetail/:id" element={<CarDetail />} />
-                    <Route path="/AddCar" element={<AddCar />} />
-                    <Route path="/UpdateCar/:id" element={<UpdateCar />} />
-                </Routes>   
-                <Footer />
-            </Router>
+            <BrandOperationsProvider>
+                <Router>
+                    <Navbar wsStatus={wsConnectionStatus} />
+                    <Routes>
+                        <Route path="/" element={<CarShop />} />
+                        <Route path="/cars/:id" element={<CarDetail />} />
+                        {/* Add an additional route that matches /CarDetail/:id pattern */}
+                        <Route path="/CarDetail/:id" element={<CarDetail />} />
+                        <Route path="/add-car" element={<AddCar />} />
+                        <Route path="/update-car/:id" element={<UpdateCar />} />
+                        
+                        {/* Brand routes */}
+                        <Route path="/brands" element={<BrandList />} />
+                        <Route path="/brands/:id" element={<BrandDetail />} />
+                        <Route path="/add-brand" element={<AddBrand />} />
+                        <Route path="/brands/:id/edit" element={<UpdateBrand />} />
+                    </Routes>   
+                    <Footer />
+                </Router>
+            </BrandOperationsProvider>
         </CarOperationsContext.Provider>
     );
 }
