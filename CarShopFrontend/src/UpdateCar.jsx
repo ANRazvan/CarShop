@@ -14,6 +14,7 @@ const UpdateCar = () => {
     const [errors, setErrors] = useState({}); // State for error messages
     const [loading, setLoading] = useState(true); // Loading state
     const [error, setError] = useState(null); // Error state
+    const [isImageModified, setIsImageModified] = useState(false); // Track if image was modified
 
     useEffect(() => {
         const fetchCarDetails = async () => {
@@ -63,13 +64,16 @@ const UpdateCar = () => {
 
     const validateForm = () => {
         let newErrors = {};
-        if (!car.make.trim()) newErrors.make = "Make is required.";
-        if (!car.model.trim()) newErrors.model = "Model is required.";
+        
+        // Validate required fields
+        if (!car.make?.trim()) newErrors.make = "Make is required.";
+        if (!car.model?.trim()) newErrors.model = "Model is required.";
         if (!car.year || car.year < 1886 || car.year > new Date().getFullYear())
             newErrors.year = "Enter a valid year.";
         if (!car.price || car.price <= 0) newErrors.price = "Enter a valid price.";
-        if (!car.description.trim()) newErrors.description = "Description is required.";
-        if (!car.img) newErrors.img = "Image is required.";
+        if (!car.description?.trim()) newErrors.description = "Description is required.";
+        // Only validate img if it was removed (since we already have an image)
+        if (isImageModified && !car.img) newErrors.img = "Image is required.";
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0; // Returns true if no errors
@@ -97,14 +101,16 @@ const UpdateCar = () => {
                 return;
             }
 
-            const imageUrl = URL.createObjectURL(file); // Temporary URL for preview
-            setCar({ ...car, img: imageUrl });
+            // Store the actual file object
+            setCar({ ...car, img: file });
+            setIsImageModified(true);
             setErrors({ ...errors, img: "" }); // Clear image errors
         }
     };
 
     const removeImage = () => {
-        setCar((prevCar) => ({ ...prevCar, img: "" }));
+        setCar((prevCar) => ({ ...prevCar, img: null }));
+        setIsImageModified(true);
         setErrors({ ...errors, img: "Image is required." });
     };
 
@@ -114,21 +120,25 @@ const UpdateCar = () => {
         }
 
         const formData = new FormData();
+        
+        // Append basic car details
         formData.append("make", car.make);
         formData.append("model", car.model);
         formData.append("year", car.year);
-        formData.append("keywords", car.keywords);
+        formData.append("keywords", car.keywords || "");
         formData.append("description", car.description);
         formData.append("fuelType", car.fuelType);
         formData.append("price", car.price);
 
-        if (car.img && typeof car.img === "object") {
-            formData.append("image", car.img); // Append the image file if it's a file object
+        // Handle image - only append if it's a file object (new upload)
+        if (isImageModified && car.img instanceof File) {
+            formData.append("image", car.img);
         }
 
         if (updateCar) {
             updateCar(car.id, formData)
-                .then(() => {
+                .then((response) => {
+                    console.log("Car updated successfully:", response);
                     alert("Car updated successfully!");
                     navigate('/'); // Redirect to the home page
                 })
@@ -148,6 +158,7 @@ const UpdateCar = () => {
 
     if (loading) return <p>Loading...</p>;
     if (error) return <p>{error}</p>;
+    if (!car) return <p>Car not found</p>;
 
     return (
         <div className="add-car-container">
@@ -157,7 +168,7 @@ const UpdateCar = () => {
                     type="text"
                     name="make"
                     placeholder="Make"
-                    value={car.make}
+                    value={car.make || ""}
                     onChange={handleChange}
                 />
                 {errors.make && <p className="error">{errors.make}</p>}
@@ -166,7 +177,7 @@ const UpdateCar = () => {
                     type="text"
                     name="model"
                     placeholder="Model"
-                    value={car.model}
+                    value={car.model || ""}
                     onChange={handleChange}
                 />
                 {errors.model && <p className="error">{errors.model}</p>}
@@ -175,12 +186,12 @@ const UpdateCar = () => {
                     type="number"
                     name="year"
                     placeholder="Year"
-                    value={car.year}
+                    value={car.year || ""}
                     onChange={handleChange}
                 />
                 {errors.year && <p className="error">{errors.year}</p>}
 
-                <select name="fuelType" value={car.fuelType} onChange={handleChange}>
+                <select name="fuelType" value={car.fuelType || ""} onChange={handleChange}>
                     <option value="">Select Fuel Type</option>
                     <option value="Diesel">Diesel</option>
                     <option value="Gasoline">Gasoline</option>
@@ -192,7 +203,7 @@ const UpdateCar = () => {
                     type="text"
                     name="keywords"
                     placeholder="Keywords"
-                    value={car.keywords}
+                    value={car.keywords || ""}
                     onChange={handleChange}
                 />
 
@@ -200,7 +211,7 @@ const UpdateCar = () => {
                     type="number"
                     name="price"
                     placeholder="Price"
-                    value={car.price}
+                    value={car.price || ""}
                     onChange={handleChange}
                 />
                 {errors.price && <p className="error">{errors.price}</p>}
@@ -209,7 +220,15 @@ const UpdateCar = () => {
             <div className="image-preview">
                 {car.img ? (
                     <>
-                        <img src={car.img} alt="Uploaded Car" />
+                        <img 
+                            src={car.img instanceof File ? URL.createObjectURL(car.img) : 
+                                (car.img.startsWith('data:') 
+                                    ? car.img 
+                                    : car.img.startsWith('http') 
+                                        ? car.img 
+                                        : `${config.UPLOADS_PATH}${car.img}`)} 
+                            alt="Car" 
+                        />
                         <button className="remove-image" onClick={removeImage}>Remove Image</button>
                     </>
                 ) : (
@@ -223,10 +242,12 @@ const UpdateCar = () => {
             <textarea
                 name="description"
                 placeholder="Enter description..."
-                value={car.description}
+                value={car.description || ""}
                 onChange={handleChange}
             ></textarea>
             {errors.description && <p className="error">{errors.description}</p>}
+
+            {errors.submit && <p className="error submit-error">{errors.submit}</p>}
 
             <div className="button-group">
                 <button className="add-car" onClick={handleSubmit}>Update Car</button>

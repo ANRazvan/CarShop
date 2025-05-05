@@ -171,7 +171,13 @@ const CarListComponent = ({
                             <Link to={`/CarDetail/${car.id}`} className="detail-link">
                                 <img
                                     className="car-img"
-                                    src={`${config.UPLOADS_PATH}${car.img}`}
+                                    src={car.img ? 
+                                        (car.img.startsWith('data:') 
+                                            ? car.img // Use Base64 data directly
+                                            : car.img.startsWith('http') 
+                                                ? car.img 
+                                                : `${config.UPLOADS_PATH}${car.img}`) 
+                                        : '/placeholder.jpeg'}
                                     alt={car.model}
                                     loading="lazy"
                                     onError={(e) => {
