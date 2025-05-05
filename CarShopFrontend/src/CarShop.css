@@ -31,48 +31,7 @@
     font-weight: bold;
 }
 
-.network-status {
-  position: fixed;
-  top: 50px;
-  left: 0;
-  right: 0;
-  padding: 8px 16px;
-  text-align: center;
-  color: white;
-  font-weight: bold;
-  z-index: 1000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  transition: all 0.3s ease;
-  margin-top: 50px; 
-}
-
-.network-status.online {
-  background-color: #4CAF50;
-  opacity: 1;
-  transform: translateY(-100%);
-}
-
-.network-status.offline {
-  background-color: #F44336;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.network-status.server-down {
-  background-color: #FF9800;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.pending-changes {
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
-  padding: 4px 10px;
-  font-size: 0.85em;
-}
+/* Removed network-status related styles as they're now in Navbar.css */
 
 .sync-status {
   position: fixed;
@@ -176,57 +135,31 @@
   background-color: #F44336;
 }
 
-.sync-button {
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-left: 8px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: background-color 0.3s;
-}
-
-.sync-button:hover {
-  background-color: #2980b9;
-}
-
-.restore-button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-left: 10px;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background-color 0.2s;
-}
-
-.restore-button:hover {
-  background-color: #45a049;
-}
-
-.reset-button {
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-left: 8px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: background-color 0.3s;
-}
-
-.reset-button:hover {
-  background-color: #c0392b;
-}
+/* Button styles moved to Navbar.css */
 
 .main-content {
   flex: 1;
   margin-top: 0px;
   position: relative;
+}
+
+.generatebuttoncontainer {
+  text-align: center; 
+  margin: 20px 0;
+}
+
+.generatebutton {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.generatebutton:hover {
+  background-color: #45a049;
 }
 
