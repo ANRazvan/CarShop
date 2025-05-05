@@ -35,7 +35,12 @@ const Car = sequelize.define('Car', {
     allowNull: false 
   },
   img: { 
-    type: DataTypes.STRING 
+    type: DataTypes.TEXT('long'),  // Change to TEXT type to store Base64 encoded image
+    comment: 'Base64 encoded image data'
+  },
+  imgType: {
+    type: DataTypes.STRING, // Store the MIME type (e.g. image/jpeg)
+    defaultValue: 'image/jpeg'
   },
   brandId: {
     type: DataTypes.INTEGER,

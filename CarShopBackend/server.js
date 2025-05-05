@@ -225,10 +225,68 @@ app.use('/api/brands', (req, res, next) => {
 // Connect to PostgreSQL database and start the server
 connectDB()
   .then(async () => {
-    // Sync models with database (force: true will drop tables if they exist)
-    // Note: Only use force: true during development
-    await sequelize.sync({ force: true });
-    console.log('Database synced and tables recreated');
+    // Sync models with database without dropping tables
+    await sequelize.sync();
+    console.log('Database synced with existing tables');
+    
+    // Add imgType column if it doesn't exist
+    try {
+      // Check if the column exists in the Cars table
+      await sequelize.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='Cars' AND column_name='imgType'
+      `);
+      
+      // Add the column if it doesn't exist
+      await sequelize.query(`
+        ALTER TABLE "Cars" 
+        ADD COLUMN IF NOT EXISTS "imgType" VARCHAR(255) DEFAULT 'image/jpeg'
+      `);
+      console.log('Added imgType column to Cars table if it did not exist');
+      
+      // Also modify the img column to be TEXT type to support Base64 encoded images
+      await sequelize.query(`
+        ALTER TABLE "Cars" 
+        ALTER COLUMN "img" TYPE TEXT
+      `);
+      console.log('Modified img column to TEXT type for Base64 storage');
+      
+      // Convert existing image paths to Base64
+      const cars = await Car.findAll();
+      console.log(`Converting ${cars.length} car images to Base64 format...`);
+      
+      let convertedCount = 0;
+      for (const car of cars) {
+        // Skip if already in Base64 format
+        if (car.img && !car.img.startsWith('data:')) {
+          try {
+            const imagePath = path.join(__dirname, 'uploads', car.img);
+            if (fs.existsSync(imagePath)) {
+              // Read file and convert to Base64
+              const imageBuffer = fs.readFileSync(imagePath);
+              // Detect mimetype based on file extension
+              const ext = path.extname(car.img).toLowerCase();
+              let mimeType = 'image/jpeg'; // Default
+              if (ext === '.png') mimeType = 'image/png';
+              if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+              
+              // Update the car record with Base64 data
+              car.img = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+              car.imgType = mimeType;
+              await car.save();
+              convertedCount++;
+            }
+          } catch (err) {
+            console.error(`Error converting image for car ID ${car.id}:`, err);
+          }
+        }
+      }
+      console.log(`Successfully converted ${convertedCount} images to Base64 format`);
+      
+    } catch (error) {
+      console.error('Error updating Cars table schema:', error);
+    }
     
     // Start the server after database connection is established
     server.listen(port, async () => {

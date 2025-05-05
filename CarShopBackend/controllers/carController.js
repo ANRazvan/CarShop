@@ -83,30 +83,83 @@ const generateCar = async () => {
     // Pick a model for this brand
     const model = faker.helpers.arrayElement(brandModels[brand.id]);
     
-    // Generate a year between 2018 and 2023
+    // Generate a truly random year between 2018 and 2023
     const year = faker.number.int({ min: 2018, max: 2023 });
     
     // Pick a fuel type
     const fuelType = faker.helpers.arrayElement(fuelTypes);
     
-    // Generate a price between 15000 and 50000
-    const price = faker.number.int({ min: 15000, max: 50000 });
+    // Generate a more precise price between 15000 and 50000
+    // Using decimal to ensure more variation
+    const price = faker.number.float({ min: 15000, max: 50000, precision: 0.01 });
     
-    // Generate keywords
+    // Generate keywords with more variety
     const engineSize = (fuelType === 'Electric') 
       ? `${faker.number.int({ min: 30, max: 120 })}kWh Battery` 
       : `${faker.number.float({ min: 1.0, max: 3.0, precision: 0.1 })}L ${fuelType}`;
-    const keywords = `${engineSize} ${faker.number.int({ min: 100, max: 350 })}Hp ${year}`;
+    const performance = faker.number.int({ min: 100, max: 350 });
+    const keywords = `${engineSize} ${performance}Hp ${year} ${faker.vehicle.vin().substring(0, 4)}`; // Add unique identifier
     
-    // Generate description
-    const description = `The ${brand.name} ${model} is a ${faker.helpers.arrayElement(['stylish', 'modern', 'practical', 'reliable', 'comfortable'])} 
-      ${faker.helpers.arrayElement(['sedan', 'car', 'vehicle'])} with a ${engineSize} engine, 
-      ${faker.helpers.arrayElement(['offering exceptional performance', 'providing great fuel efficiency', 'combining power and efficiency'])}.
-      It features ${faker.helpers.arrayElement(['premium interior', 'advanced technology', 'spacious cabin', 'modern design'])} and 
-      ${faker.helpers.arrayElement(['excellent safety features', 'intuitive controls', 'state-of-the-art infotainment', 'advanced driver assistance'])}.`;
+    // Generate description with random elements to ensure uniqueness
+    const carAdjective = faker.helpers.arrayElement(['stylish', 'modern', 'practical', 'reliable', 'comfortable', 'sporty', 'elegant', 'luxurious']);
+    const carType = faker.helpers.arrayElement(['sedan', 'car', 'vehicle', 'automobile', 'transportation option']);
+    const performanceDescription = faker.helpers.arrayElement([
+      'offering exceptional performance', 
+      'providing great fuel efficiency', 
+      'combining power and efficiency',
+      'delivering impressive handling',
+      'featuring outstanding acceleration'
+    ]);
+    const featureType = faker.helpers.arrayElement([
+      'premium interior', 
+      'advanced technology', 
+      'spacious cabin', 
+      'modern design',
+      'ergonomic controls',
+      'high-quality materials',
+      'stylish appearance'
+    ]);
+    const safetyFeature = faker.helpers.arrayElement([
+      'excellent safety features', 
+      'intuitive controls', 
+      'state-of-the-art infotainment', 
+      'advanced driver assistance',
+      'collision prevention systems',
+      'adaptive cruise control',
+      'lane keeping assistance'
+    ]);
     
-    // Pick a random image from available images
-    const img = faker.helpers.arrayElement(availableImages);
+    // Create unique description with timestamp to ensure uniqueness
+    const timestamp = Date.now().toString().slice(-5); // Use last 5 digits of timestamp for uniqueness
+    const description = `The ${brand.name} ${model} is a ${carAdjective} 
+      ${carType} with a ${engineSize} engine, 
+      ${performanceDescription}.
+      It features ${featureType} and 
+      ${safetyFeature}. (Ref: ${timestamp})`;
+    
+    // Pick a random image name from available images
+    const imgFileName = faker.helpers.arrayElement(availableImages);
+    
+    // Read the image file and convert to base64
+    let imageData = null;
+    let imgType = 'image/jpeg';
+    try {
+      const imagePath = path.join(__dirname, '../uploads', imgFileName);
+      if (fs.existsSync(imagePath)) {
+        const imageBuffer = fs.readFileSync(imagePath);
+        imageData = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+      } else {
+        // If image not found, use a default image
+        const defaultPath = path.join(__dirname, '../uploads/default-car.jpg');
+        if (fs.existsSync(defaultPath)) {
+          const defaultBuffer = fs.readFileSync(defaultPath);
+          imageData = `data:image/jpeg;base64,${defaultBuffer.toString('base64')}`;
+        }
+      }
+    } catch (err) {
+      console.error('Error reading image file:', err);
+      // Continue without image if there's an error
+    }
     
     // Create the car object - populate both make and brandId for compatibility
     return {
@@ -118,7 +171,8 @@ const generateCar = async () => {
       description,
       fuelType,
       price,
-      img
+      img: imageData,
+      imgType
     };
   } catch (error) {
     console.error('Error generating car:', error);
@@ -359,9 +413,31 @@ const getCarById = async (req, res) => {
 const createCar = async (req, res) => {
   try {
     const carData = {
-      ...req.body,
-      img: req.file ? req.file.filename : 'default-car.jpg'
+      ...req.body
     };
+    
+    // Process image data if a file was uploaded
+    if (req.file) {
+      // Read the file into a Buffer
+      const imageBuffer = fs.readFileSync(req.file.path);
+      
+      // Convert the image to Base64 and store it in the database
+      carData.img = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
+      carData.imgType = req.file.mimetype;
+      
+      // Delete the temporary file from disk after encoding
+      fs.unlinkSync(req.file.path);
+    } else {
+      // If no image provided, use a default image
+      const defaultImagePath = path.join(__dirname, '../uploads/default-car.jpg');
+      if (fs.existsSync(defaultImagePath)) {
+        const defaultImageBuffer = fs.readFileSync(defaultImagePath);
+        carData.img = `data:image/jpeg;base64,${defaultImageBuffer.toString('base64')}`;
+        carData.imgType = 'image/jpeg';
+      } else {
+        carData.img = null;
+      }
+    }
     
     // Convert brandId to number if it's a string
     if (carData.brandId && typeof carData.brandId === 'string') {
@@ -428,11 +504,21 @@ const updateCar = async (req, res) => {
       if (!brand) {
         return res.status(400).json({ errors: ['Selected brand does not exist'] });
       }
+      // Set the make field to match the brand name for consistency
+      updatedData.make = brand.name;
     }
     
     // If there's a new image, update the img property
     if (req.file) {
-      updatedData.img = req.file.filename;
+      // Read the file into a Buffer
+      const imageBuffer = fs.readFileSync(req.file.path);
+      
+      // Convert the image to Base64 and store it in the database
+      updatedData.img = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
+      updatedData.imgType = req.file.mimetype;
+      
+      // Delete the temporary file from disk after encoding
+      fs.unlinkSync(req.file.path);
     }
     
     // Convert price to number if it's a string
