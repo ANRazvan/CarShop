@@ -242,6 +242,10 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                 </div>
                             )}
                         </div>
+                        
+                        {/* Statistics link */}
+                        <Link to="/statistics" className="nav-link">Statistics</Link>
+                        
                         {/* Add buttons for sync and restore functionality */}
                         {getOfflineQueue().length > 0 && (
                             <>

@@ -1,7 +1,6 @@
 import React, { memo, useEffect, useState } from "react";
 import "./CarList.css";
 import { Link } from "react-router-dom";
-import Statistics from "./Statistics.jsx";
 import config from "./config.js";
 
 // Define the component first
@@ -115,7 +114,6 @@ const CarListComponent = ({
                     <span>Working in offline mode</span>
                 </div>
             )}
-            <Statistics cars={cars} />
             
             <div className="controls-wrapper">
                 <div className="controls">
@@ -209,16 +207,98 @@ const CarListComponent = ({
                         <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1 || loading}>
                             Previous
                         </button>
-                        {Array.from({ length: totalPages }, (_, index) => (
-                            <button
-                                key={index + 1}
-                                className={currentPage === index + 1 ? "active" : ""}
-                                onClick={() => goToPage(index + 1)}
-                                disabled={loading}
-                            >
-                                {index + 1}
-                            </button>
-                        ))}
+                        {(() => {
+                            const pages = [];
+                            const maxPagesToShow = 3; // Number of pages to show on each side
+                            
+                            // Always show first page
+                            if (totalPages > 0) {
+                                pages.push(
+                                    <button
+                                        key={1}
+                                        className={currentPage === 1 ? "active" : ""}
+                                        onClick={() => goToPage(1)}
+                                        disabled={loading}
+                                    >
+                                        1
+                                    </button>
+                                );
+                            }
+                            
+                            // If there are many pages, add ellipsis after page 2
+                            if (currentPage > maxPagesToShow + 1) {
+                                pages.push(<span key="ellipsis-1" className="pagination-ellipsis">...</span>);
+                            } else if (totalPages > 2) {
+                                // Show page 2 if we're close to the beginning
+                                pages.push(
+                                    <button
+                                        key={2}
+                                        className={currentPage === 2 ? "active" : ""}
+                                        onClick={() => goToPage(2)}
+                                        disabled={loading}
+                                    >
+                                        2
+                                    </button>
+                                );
+                            }
+                            
+                            // Pages around current page
+                            for (let i = Math.max(3, currentPage - 1); i <= Math.min(totalPages - 2, currentPage + 1); i++) {
+                                // Only add if not too close to the beginning or end
+                                if ((i > 2 && i < currentPage - 1) || (i < totalPages - 1 && i > currentPage + 1)) {
+                                    continue;
+                                }
+                                
+                                pages.push(
+                                    <button
+                                        key={i}
+                                        className={currentPage === i ? "active" : ""}
+                                        onClick={() => goToPage(i)}
+                                        disabled={loading}
+                                    >
+                                        {i}
+                                    </button>
+                                );
+                            }
+                            
+                            // Add ellipsis before last two pages if needed
+                            if (currentPage < totalPages - maxPagesToShow) {
+                                pages.push(<span key="ellipsis-2" className="pagination-ellipsis">...</span>);
+                            }
+                            
+                            // Always show second-to-last page if there are enough pages
+                            if (totalPages > 2) {
+                                // Don't show if we already included it in the central section
+                                if (totalPages - 1 > currentPage + 1) {
+                                    pages.push(
+                                        <button
+                                            key={totalPages - 1}
+                                            className={currentPage === totalPages - 1 ? "active" : ""}
+                                            onClick={() => goToPage(totalPages - 1)}
+                                            disabled={loading}
+                                        >
+                                            {totalPages - 1}
+                                        </button>
+                                    );
+                                }
+                            }
+                            
+                            // Always show last page if there's more than one page
+                            if (totalPages > 1) {
+                                pages.push(
+                                    <button
+                                        key={totalPages}
+                                        className={currentPage === totalPages ? "active" : ""}
+                                        onClick={() => goToPage(totalPages)}
+                                        disabled={loading}
+                                    >
+                                        {totalPages}
+                                    </button>
+                                );
+                            }
+                            
+                            return pages;
+                        })()}
                         <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages || loading}>
                             Next
                         </button>
