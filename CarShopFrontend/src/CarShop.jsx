@@ -11,6 +11,12 @@ import { faker } from "@faker-js/faker";
 import config from './config.js';
 import Charts from "./Charts.jsx";
 
+// Create a session storage backup when localStorage fails
+const sessionCarsCache = {
+  cars: [],
+  timestamp: null
+};
+
 // Utility function for debouncing
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -28,14 +34,207 @@ const useDebounce = (value, delay) => {
     return debouncedValue;
 };
 
+// Storage utilities to handle localStorage quota limits
+const storageUtils = {
+    // Ultra compresses a car object - only absolute minimum fields
+    minimalCompressCar: (car) => {
+        if (!car) return null;
+        
+        // Store only the bare minimum fields needed to render the card
+        return {
+            id: car.id,
+            make: car.make,
+            model: car.model,
+            price: car.price,
+            _isTemp: car._isTemp || false
+        };
+    },
+    
+    // Compresses a car object by removing unnecessary fields for storage
+    compressCar: (car) => {
+        if (!car) return null;
+        
+        // Only store essential fields to save space
+        const compressedCar = {
+            id: car.id,
+            make: car.make,
+            model: car.model,
+            year: car.year,
+            price: car.price,
+            fuelType: car.fuelType,
+            brandId: car.brandId, 
+            _isTemp: car._isTemp || false
+        };
+        
+        // Don't store keywords as they're not essential
+        if (car.keywords && car.keywords.length < 20) {
+            compressedCar.keywords = car.keywords;
+        }
+        
+        // Only store image reference (not full data URLs) to save space
+        if (car.img) {
+            // If it's a path or URL that's not a base64 string, store it
+            if (typeof car.img === 'string' && !car.img.startsWith('data:')) {
+                compressedCar.img = car.img;
+            }
+        }
+        
+        return compressedCar;
+    },
+    
+    // Check if local storage is available and has space
+    isLocalStorageAvailable: () => {
+        try {
+            const test = 'test';
+            localStorage.setItem(test, test);
+            localStorage.removeItem(test);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+    
+    // Safely store data in localStorage with error handling and multiple fallbacks
+    safelyStoreData: (key, data) => {
+        // First try: session memory cache for cars (doesn't use localStorage)
+        if (key === 'cachedCars') {
+            sessionCarsCache.cars = [...data.cars];
+            sessionCarsCache.timestamp = data.timestamp;
+        }
+        
+        try {
+            // Second try: Normal storage
+            localStorage.setItem(key, JSON.stringify(data));
+            console.log(`Successfully stored ${key} data`);
+            return true;
+        } catch (error) {
+            console.warn(`Storage warning for ${key}:`, error.message);
+            
+            // If it's a quota error, try to store a reduced version
+            if (error.name === 'QuotaExceededError' || error.code === 22 || 
+                error.code === 1014 || error.message.includes('quota')) {
+                
+                if (key === 'cachedCars' && data.cars) {
+                    try {
+                        // Third try: Store compressed version (no images, limited fields)
+                        const compressedData = {
+                            cars: data.cars.slice(0, 50).map(storageUtils.compressCar),
+                            timestamp: data.timestamp,
+                            compressed: true
+                        };
+                        
+                        localStorage.setItem(key, JSON.stringify(compressedData));
+                        console.log('Stored compressed car data (50 items)');
+                        return true;
+                    } catch (compressError) {
+                        try {
+                            // Fourth try: Ultra minimal data, severely limited count
+                            console.warn('Trying minimal compression with very limited data');
+                            const minimalData = {
+                                cars: data.cars.slice(0, 20).map(storageUtils.minimalCompressCar),
+                                timestamp: data.timestamp,
+                                ultraCompressed: true
+                            };
+                            
+                            localStorage.setItem(key, JSON.stringify(minimalData));
+                            console.log('Stored minimal car data (20 items only)');
+                            return true;
+                        } catch (finalError) {
+                            console.error('All localStorage attempts failed - using session memory only');
+                            
+                            // Fifth try: Clear other storage to make room
+                            try {
+                                localStorage.removeItem('cachedCars');
+                                console.log('Cleared existing cached cars to make room');
+                                
+                                // Try one more time with minimal data
+                                const lastAttemptData = {
+                                    cars: data.cars.slice(0, 10).map(storageUtils.minimalCompressCar),
+                                    timestamp: data.timestamp,
+                                    emergency: true
+                                };
+                                
+                                localStorage.setItem(key, JSON.stringify(lastAttemptData));
+                                console.log('Emergency storage of 10 items succeeded');
+                                return true;
+                            } catch (e) {
+                                // We'll rely on sessionCarsCache instead
+                            }
+                        }
+                    }
+                } else {
+                    // For non-car data, try to store a stringified version
+                    try {
+                        const stringData = JSON.stringify(data);
+                        if (stringData.length > 10000) {
+                            // If it's too large, store truncated version
+                            localStorage.setItem(key, stringData.substring(0, 10000) + '..."');
+                            return true;
+                        }
+                    } catch (e) {
+                        console.error('Failed to store even truncated data');
+                    }
+                }
+            }
+            
+            // We still have the session memory cache as fallback
+            return false;
+        }
+    },
+    
+    // Safely retrieve data from localStorage with fallback to session memory
+    safelyGetData: (key, defaultValue = null) => {
+        try {
+            // Try to get from localStorage first
+            const item = localStorage.getItem(key);
+            
+            // For cachedCars, use the session memory cache if localStorage fails or isn't available
+            if (key === 'cachedCars' && (!item || item === 'null') && sessionCarsCache.cars.length > 0) {
+                console.log('Using session memory cache instead of localStorage');
+                return {
+                    cars: sessionCarsCache.cars,
+                    timestamp: sessionCarsCache.timestamp,
+                    fromSessionCache: true
+                };
+            }
+            
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.error(`Error retrieving data from localStorage (${key}):`, error);
+            
+            // Fallback to session cache for cars
+            if (key === 'cachedCars' && sessionCarsCache.cars.length > 0) {
+                return {
+                    cars: sessionCarsCache.cars,
+                    timestamp: sessionCarsCache.timestamp,
+                    fromSessionCache: true
+                };
+            }
+            
+            return defaultValue;
+        }
+    },
+    
+    // Clear all storage for testing
+    clearAllStorage: () => {
+        try {
+            localStorage.clear();
+            sessionCarsCache.cars = [];
+            sessionCarsCache.timestamp = null;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+};
+
 // Queue for storing offline operations
 const getOfflineQueue = () => {
-    const queue = localStorage.getItem('offlineOperationsQueue');
-    return queue ? JSON.parse(queue) : [];
+    return storageUtils.safelyGetData('offlineOperationsQueue', []);
 };
 
 const setOfflineQueue = (queue) => {
-    localStorage.setItem('offlineOperationsQueue', JSON.stringify(queue));
+    storageUtils.safelyStoreData('offlineOperationsQueue', queue);
 };
 
 const addToOfflineQueue = (operation) => {
@@ -100,10 +299,10 @@ const CarShop = () => {
                 setServerAvailable(false);
                 // Cache the current data for offline use if we're going offline
                 if (cars.length > 0) {
-                    localStorage.setItem('cachedCars', JSON.stringify({
+                    storageUtils.safelyStoreData('cachedCars', {
                         cars: cars,
                         timestamp: new Date().toISOString()
-                    }));
+                    });
                 }
             });
     }, [cars]);
@@ -170,22 +369,29 @@ const CarShop = () => {
             // Use cached data when offline - just display without filtering/sorting
             console.log("CarShop: Using cached data in offline mode");
             setLoading(false);
-            const cachedData = localStorage.getItem('cachedCars');
-            if (cachedData) {
+            const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: null});
+            if (cachedData && cachedData.cars && cachedData.cars.length > 0) {
                 try {
-                    const parsed = JSON.parse(cachedData);
-                    
                     // Simple display of cached data without filtering/sorting
                     // Just use pagination for simplicity
                     const startIndex = (currentPage - 1) * itemsPerPage;
-                    const endIndex = itemsPerPage === Infinity ? parsed.cars.length : startIndex + itemsPerPage;
-                    const simpleCars = parsed.cars.slice(startIndex, endIndex);
+                    const endIndex = itemsPerPage === Infinity ? cachedData.cars.length : startIndex + itemsPerPage;
+                    const simpleCars = cachedData.cars.slice(startIndex, endIndex);
                     
                     console.log(`CarShop: Retrieved ${simpleCars.length} cars from cache`);
+                    console.log(`CarShop: Using ${cachedData.fromSessionCache ? 'session memory' : 'localStorage'} cache`);
+                    
+                    if (cachedData.compressed || cachedData.ultraCompressed || cachedData.emergency) {
+                        console.log(`CarShop: Using compressed cache data (${
+                            cachedData.emergency ? 'emergency mode' : 
+                            cachedData.ultraCompressed ? 'ultra-compressed' : 'compressed'
+                        })`);
+                    }
+                    
                     setCars(simpleCars);
-                    setTotalPages(itemsPerPage === Infinity ? 1 : Math.ceil(parsed.cars.length / itemsPerPage));
+                    setTotalPages(itemsPerPage === Infinity ? 1 : Math.ceil(cachedData.cars.length / itemsPerPage));
                 } catch (error) {
-                    console.error("CarShop: Error parsing cached data:", error);
+                    console.error("CarShop: Error processing cached data:", error);
                     setCars([]);
                     setTotalPages(1);
                 }
@@ -230,11 +436,11 @@ const CarShop = () => {
                     setTotalPages(itemsPerPage === Infinity ? 1 : response.data.totalPages || 1);
                     setLoading(false);
                     
-                    // Cache the filtered data
-                    localStorage.setItem('cachedCars', JSON.stringify({
+                    // Cache the filtered data using our safe storage method
+                    storageUtils.safelyStoreData('cachedCars', {
                         cars: filteredCars,
                         timestamp: new Date().toISOString()
-                    }));
+                    });
                     clearTimeout(loadingTimeout); // Clear the timeout when we're done
                 })
                 .catch((error) => {
@@ -258,18 +464,17 @@ const CarShop = () => {
                     
                     clearTimeout(loadingTimeout); // Clear the timeout when we're done
                     
-                    // Try to use cached data as fallback
-                    const cachedData = localStorage.getItem('cachedCars');
-                    if (cachedData) {
-                        try {
-                            const parsed = JSON.parse(cachedData);
-                            console.log("CarShop: Using cached data as fallback after fetch error");
-                            setCars(parsed.cars || []);
-                        } catch (parseError) {
-                            console.error("CarShop: Error parsing cached data:", parseError);
-                            setCars([]);
+                    // Try to use cached data as fallback using improved storage utilities
+                    const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: null});
+                    if (cachedData && cachedData.cars && cachedData.cars.length > 0) {
+                        console.log("CarShop: Using cached data as fallback after fetch error");
+                        console.log(`CarShop: Retrieved ${cachedData.cars.length} cars from cache`);
+                        if (cachedData.fromSessionCache) {
+                            console.log("CarShop: Using data from session memory (localStorage failed)");
                         }
+                        setCars(cachedData.cars || []);
                     } else {
+                        console.log("CarShop: No valid cached data available after error");
                         setCars([]);
                     }
                     
@@ -285,15 +490,17 @@ const CarShop = () => {
     }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable, loading]);
 
     // Function to load more cars from the backend for infinite scroll
-    const fetchInfiniteScrollCars = useCallback((pageNumber, append = false) => {
-        console.log("Fetching infinite scroll cars for page:", pageNumber);
+    const fetchInfiniteScrollCars = useCallback((pageNumber, append = false, exactCount = null) => {
+        console.log(`Fetching infinite scroll cars for page: ${pageNumber}, append: ${append}`);
         setLoading(true);
         
         const params = new URLSearchParams();
         
-        // Always fetch 4 items per page for infinite scroll
+        // Always use exactly 16 items per batch for consistent loading
+        const ITEMS_PER_BATCH = exactCount || 16;
+        
         params.append("page", pageNumber.toString());
-        params.append("itemsPerPage", "4"); // Fixed size for infinite scroll batches
+        params.append("itemsPerPage", ITEMS_PER_BATCH.toString());
         
         if (sortMethod) {
             const [field, direction] = sortMethod.split('-');
@@ -304,7 +511,6 @@ const CarShop = () => {
         // Updated: Use brandId instead of make to match backend expectations
         if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
             params.append("brandId", debouncedFilters.makes.join(","));
-            console.log("CarShop: Setting brandId filter:", debouncedFilters.makes.join(","));
         }
         
         if (debouncedFilters.fuelTypes.length > 0) {
@@ -324,21 +530,21 @@ const CarShop = () => {
         }
         
         // Don't update URL params for infinite scroll requests
-        // setSearchParams(params, { replace: true });
         
         if (!isOnline || !serverAvailable) {
             // Offline mode handling for infinite scroll
             console.log("Using cached data in offline mode for infinite scroll");
-            setLoading(false);
-            const cachedData = localStorage.getItem('cachedCars');
-            if (cachedData) {
+            const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: ''});
+            if (cachedData && cachedData.cars && cachedData.cars.length > 0) {
                 try {
-                    const parsed = JSON.parse(cachedData);
-                    const startIndex = (pageNumber - 1) * 4; // 4 items per page
-                    const endIndex = startIndex + 4;
-                    const pageCars = parsed.cars.slice(startIndex, endIndex);
+                    const startIndex = (pageNumber - 1) * ITEMS_PER_BATCH;
+                    const endIndex = startIndex + ITEMS_PER_BATCH;
+                    const pageCars = cachedData.cars.slice(startIndex, endIndex);
                     
                     console.log(`Retrieved ${pageCars.length} cars from cache for infinite scroll`);
+                    
+                    // Check if we've reached the end of available cars
+                    const hasMoreCars = endIndex < cachedData.cars.length;
                     
                     setCars(prevCars => {
                         if (append && prevCars.length > 0) {
@@ -351,13 +557,17 @@ const CarShop = () => {
                         }
                     });
                     
-                    setTotalPages(Math.ceil(parsed.cars.length / 4));
+                    setTotalPages(Math.ceil(cachedData.cars.length / ITEMS_PER_BATCH));
+                    
+                    // Always set loading to false when done
+                    setLoading(false);
                 } catch (error) {
-                    console.error("Error parsing cached data:", error);
+                    console.error("Error processing cached data for infinite scroll:", error);
                     if (!append) {
                         setCars([]);
                         setTotalPages(1);
                     }
+                    setLoading(false);
                 }
             } else {
                 console.log("No cached data available");
@@ -365,6 +575,7 @@ const CarShop = () => {
                     setCars([]);
                     setTotalPages(1);
                 }
+                setLoading(false);
             }
         } else {
             console.log(`Fetching infinite scroll cars with params: ${params.toString()}`);
@@ -372,25 +583,40 @@ const CarShop = () => {
             axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
                 .then((response) => {
                     console.log("API response received for infinite scroll:", response.data);
+                    
+                    if (!response.data || !response.data.cars) {
+                        console.error("Invalid API response format");
+                        setLoading(false);
+                        return;
+                    }
+                    
                     const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
                     const filteredCars = (response.data.cars || []).filter(
-                        car => !deletedCarsRegistry.includes(car.id.toString())
+                        car => !deletedCarsRegistry.includes(car.id?.toString())
                     );
                     
                     console.log(`Received ${filteredCars.length} new cars for infinite scroll`);
+                    
+                    // Track if this is the last batch based on server response
+                    const isLastPage = pageNumber >= (response.data.totalPages || 1);
+                    const receivedFewerThanRequested = filteredCars.length < ITEMS_PER_BATCH;
                     
                     setCars(prevCars => {
                         if (append && prevCars.length > 0) {
                             // Only append new cars that aren't already displayed
                             const existingIds = new Set(prevCars.map(car => car.id));
                             const newCars = filteredCars.filter(car => !existingIds.has(car.id));
+                            console.log(`Adding ${newCars.length} new unique cars to existing ${prevCars.length}`);
                             return [...prevCars, ...newCars];
                         } else {
                             return filteredCars;
                         }
                     });
                     
+                    // Always set total pages from response
                     setTotalPages(response.data.totalPages || 1);
+                    
+                    // Set loading to false immediately to allow next batch
                     setLoading(false);
                 })
                 .catch((error) => {
@@ -406,12 +632,11 @@ const CarShop = () => {
         if (deletedCarsRegistry.length > 0) {
             setCars(prevCars => prevCars.filter(car => !deletedCarsRegistry.includes(car.id.toString())));
             
-            // Also update cache
-            const cachedData = localStorage.getItem('cachedCars');
-            if (cachedData) {
-                const parsed = JSON.parse(cachedData);
-                parsed.cars = parsed.cars.filter(car => !deletedCarsRegistry.includes(car.id.toString()));
-                localStorage.setItem('cachedCars', JSON.stringify(parsed));
+            // Also update cache with safe storage
+            const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: ''});
+            if (cachedData && cachedData.cars) {
+                cachedData.cars = cachedData.cars.filter(car => !deletedCarsRegistry.includes(car.id.toString()));
+                storageUtils.safelyStoreData('cachedCars', cachedData);
             }
         }
     }, []);
@@ -798,10 +1023,10 @@ const CarShop = () => {
                         // Add the new car to the beginning of the list
                         setCars(prevCars => [newCar, ...prevCars]);
                         
-                        // Also update the cached cars
-                        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+                        // Update the cached cars with safe storage
+                        const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: new Date().toISOString()});
                         cachedData.cars = [newCar, ...cachedData.cars];
-                        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+                        storageUtils.safelyStoreData('cachedCars', cachedData);
                         
                         // Show a notification
                         setRealtimeUpdateReceived(true);
@@ -843,13 +1068,15 @@ const CarShop = () => {
         localStorage.removeItem('offlineOperationsQueue');
         console.log('CarShop: Offline operations queue cleared');
         
-        // Also update any temporary styling on cached cars
-        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-        cachedData.cars = cachedData.cars.map(car => ({
-            ...car,
-            _isTemp: false // Remove all temp flags
-        }));
-        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+        // Update any temporary styling on cached cars using safe methods
+        const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: new Date().toISOString()});
+        if (cachedData && cachedData.cars) {
+            cachedData.cars = cachedData.cars.map(car => ({
+                ...car,
+                _isTemp: false // Remove all temp flags
+            }));
+            storageUtils.safelyStoreData('cachedCars', cachedData);
+        }
         
         // Update UI to remove temporary styling
         setCars(prevCars => prevCars.map(car => ({
@@ -864,7 +1091,7 @@ const CarShop = () => {
         }, 3000);
         
         // Return an empty array to represent the cleared queue
-        setOfflineQueue([]);
+        return [];
     };
 
     const toggleGeneration = () => {
