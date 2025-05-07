@@ -7,6 +7,7 @@ const { WebSocketServer } = require('ws');
 const http = require('http');
 const carRoutes = require('./routes/cars');
 const brandRoutes = require('./routes/brands');
+const statisticsRoutes = require('./routes/statistics'); // Added statistics routes
 const { connectDB, sequelize } = require('./config/pgdb');
 const Car = require('./models/Car');
 const Brand = require('./models/Brand');
@@ -221,6 +222,9 @@ app.use('/api/brands', (req, res, next) => {
     
     next();
 }, brandRoutes);
+
+// Statistics routes
+app.use('/api/statistics', statisticsRoutes);
 
 // Connect to PostgreSQL database and start the server
 connectDB()

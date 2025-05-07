@@ -20,6 +20,7 @@
     "pg": "^8.15.6",
     "pg-hstore": "^2.3.4",
     "reconnecting-websocket": "^4.4.0",
+    "redis": "^5.0.1",
     "sequelize": "^6.37.7",
     "ws": "^8.18.1"
   },

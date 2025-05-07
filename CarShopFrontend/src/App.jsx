@@ -13,6 +13,7 @@ import CarOperationsContext from './CarOperationsContext.jsx';
 import BrandList from './BrandList.jsx';
 import BrandDetail from './BrandDetail.jsx';
 import AddBrand from './AddBrand.jsx';
+import StatisticsPage from './StatisticsPage.jsx';  
 import UpdateBrand from './UpdateBrand.jsx';
 import { BrandOperationsProvider } from './BrandOperationsContext.jsx';
 import config from "./config.js";

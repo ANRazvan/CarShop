@@ -168,22 +168,53 @@ const BrandList = () => {
 
   // Generate page numbers for pagination
   const getPageNumbers = () => {
-    const pageNumbers = [];
-    const maxPages = Math.min(totalPages, 5);
+    const pages = [];
+    const maxPagesToShow = 3; // Number of pages to show on each side
     
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = startPage + maxPages - 1;
-    
-    if (endPage > totalPages) {
-      endPage = totalPages;
-      startPage = Math.max(1, endPage - maxPages + 1);
+    // Always show first page
+    if (totalPages > 0) {
+      pages.push(1);
     }
     
-    for (let i = startPage; i <= endPage; i++) {
-      pageNumbers.push(i);
+    // If there are many pages, add ellipsis after page 2
+    if (currentPage > maxPagesToShow + 1) {
+      if (totalPages > 2) {
+        pages.push('...');
+      }
+    } else if (totalPages > 2) {
+      // Show page 2 if we're close to the beginning
+      pages.push(2);
     }
     
-    return pageNumbers;
+    // Pages around current page
+    for (let i = Math.max(3, currentPage - 1); i <= Math.min(totalPages - 2, currentPage + 1); i++) {
+      // Only add if not too close to the beginning or end
+      if ((i > 2 && i < currentPage - 1) || (i < totalPages - 1 && i > currentPage + 1)) {
+        continue;
+      }
+      
+      pages.push(i);
+    }
+    
+    // Add ellipsis before last two pages if needed
+    if (currentPage < totalPages - maxPagesToShow && totalPages > 3) {
+      pages.push('...');
+    }
+    
+    // Always show second-to-last page if there are enough pages
+    if (totalPages > 2) {
+      // Don't show if we already included it in the central section
+      if (totalPages - 1 > currentPage + 1) {
+        pages.push(totalPages - 1);
+      }
+    }
+    
+    // Always show last page if there's more than one page
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    
+    return pages;
   };
 
   return (
@@ -375,13 +406,17 @@ const BrandList = () => {
               </button>
               
               {getPageNumbers().map(number => (
-                <button
-                  key={number}
-                  onClick={() => handlePageChange(number)}
-                  className={currentPage === number ? 'active page-number-btn' : 'page-number-btn'}
-                >
-                  {number}
-                </button>
+                number === '...' ? (
+                  <span key={`ellipsis-${Math.random()}`} className="pagination-ellipsis">...</span>
+                ) : (
+                  <button
+                    key={number}
+                    onClick={() => handlePageChange(number)}
+                    className={currentPage === number ? 'active page-number-btn' : 'page-number-btn'}
+                  >
+                    {number}
+                  </button>
+                )
               ))}
               
               <button
