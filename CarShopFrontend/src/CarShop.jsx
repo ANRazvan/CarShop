@@ -10,6 +10,16 @@ import CarOperationsContext from './CarOperationsContext.jsx';
 import { faker } from "@faker-js/faker";
 import config from './config.js';
 import Charts from "./Charts.jsx";
+import CacheManager from './utils/CacheManager.js';
+
+// Global cache for pagination chunks (in memory)
+const inMemoryCarCache = {
+  chunks: {}, // Format: { pageKey: { data: [], timestamp: Date } }
+  currentPage: 1,
+  totalPages: 1,
+  totalCars: 0,
+  timestamp: null
+};
 
 // Create a session storage backup when localStorage fails
 const sessionCarsCache = {
@@ -94,8 +104,139 @@ const storageUtils = {
         }
     },
     
+    // Get a paginated cache key
+    getPaginatedCacheKey: (page = 1, filters = {}) => {
+        // Create a simplified hash of the filters for the cache key
+        const filterHash = JSON.stringify(filters).replace(/[{}":\s]/g, '');
+        return `cachedCars_p${page}_${filterHash}`;
+    },
+    
+    // Store cars in page chunks to avoid quota issues
+    storePagedCars: (cars, page = 1, totalPages = 1, totalCars = 0, filters = {}) => {
+        if (!cars || !cars.length) return false;
+        
+        try {
+            // Update the in-memory cache (no quota issues)
+            const key = storageUtils.getPaginatedCacheKey(page, filters);
+            inMemoryCarCache.chunks[key] = {
+                data: cars,
+                timestamp: new Date().toISOString()
+            };
+            
+            inMemoryCarCache.currentPage = page;
+            inMemoryCarCache.totalPages = totalPages;
+            inMemoryCarCache.totalCars = totalCars;
+            inMemoryCarCache.timestamp = new Date().toISOString();
+            
+            // Also store current page meta info in localStorage (small payload)
+            try {
+                const metaInfo = {
+                    lastPage: page,
+                    totalPages: totalPages,
+                    totalCars: totalCars,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('carCache_meta', JSON.stringify(metaInfo));
+                
+                // Only try to store up to 50 cars per page in localStorage to avoid quota issues
+                const compressedCars = cars.slice(0, 50).map(storageUtils.compressCar);
+                localStorage.setItem(key, JSON.stringify({
+                    cars: compressedCars,
+                    timestamp: new Date().toISOString()
+                }));
+                
+                console.log(`Stored page ${page} with ${compressedCars.length} cars in localStorage`);
+                return true;
+            } catch (error) {
+                console.warn("Failed to store paged cars in localStorage:", error.message);
+                // We still have the in-memory cache, so this is not a critical failure
+                return true;
+            }
+        } catch (error) {
+            console.error("Failed to store paged cars:", error);
+            return false;
+        }
+    },
+    
+    // Get cars for a specific page from cache
+    getPagedCars: (page = 1, filters = {}) => {
+        const key = storageUtils.getPaginatedCacheKey(page, filters);
+        
+        // First try in-memory cache (fastest, no quota issues)
+        if (inMemoryCarCache.chunks[key]?.data?.length) {
+            console.log(`Using in-memory cache for page ${page}`);
+            return {
+                cars: inMemoryCarCache.chunks[key].data,
+                totalPages: inMemoryCarCache.totalPages,
+                totalCars: inMemoryCarCache.totalCars,
+                fromCache: 'memory',
+                timestamp: inMemoryCarCache.chunks[key].timestamp
+            };
+        }
+        
+        // Then try localStorage
+        try {
+            const cachedData = localStorage.getItem(key);
+            if (cachedData) {
+                const parsed = JSON.parse(cachedData);
+                const metaInfo = JSON.parse(localStorage.getItem('carCache_meta') || '{}');
+                
+                console.log(`Using localStorage cache for page ${page}`);
+                return {
+                    cars: parsed.cars || [],
+                    totalPages: metaInfo.totalPages || 1,
+                    totalCars: metaInfo.totalCars || parsed.cars?.length || 0,
+                    fromCache: 'local',
+                    timestamp: parsed.timestamp
+                };
+            }
+        } catch (error) {
+            console.warn(`Failed to retrieve page ${page} from localStorage:`, error.message);
+        }
+        
+        // No cached data found for this page
+        return null;
+    },
+    
     // Safely store data in localStorage with error handling and multiple fallbacks
     safelyStoreData: (key, data) => {
+        // Special handling for car data to use pagination strategy
+        if (key === 'cachedCars' && data.cars && data.cars.length > 100) {
+            console.log(`Breaking up ${data.cars.length} cars into cached chunks`);
+            // Store metadata only
+            const metaInfo = {
+                totalCars: data.cars.length,
+                timestamp: data.timestamp || new Date().toISOString()
+            };
+            
+            try {
+                localStorage.setItem('carCache_meta', JSON.stringify(metaInfo));
+                // We'll store the first 50 cars under the main cache key
+                const firstChunk = data.cars.slice(0, 50).map(storageUtils.compressCar);
+                localStorage.setItem('cachedCars_p1', JSON.stringify({
+                    cars: firstChunk,
+                    timestamp: data.timestamp || new Date().toISOString()
+                }));
+                console.log(`Stored first 50 cars in localStorage`);
+                
+                // Rest of the cache handled by in-memory strategy
+                inMemoryCarCache.chunks['cachedCars_p1'] = {
+                    data: data.cars.slice(0, Math.min(1000, data.cars.length)),
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+                inMemoryCarCache.totalCars = data.cars.length;
+                inMemoryCarCache.timestamp = data.timestamp || new Date().toISOString();
+                
+                return true;
+            } catch (error) {
+                console.warn("Failed main cache storage, falling back to session memory");
+                sessionCarsCache.cars = data.cars.slice(0, 1000); // Only keep a reasonable amount in memory
+                sessionCarsCache.timestamp = data.timestamp || new Date().toISOString();
+                return false;
+            }
+        }
+
         // First try: session memory cache for cars (doesn't use localStorage)
         if (key === 'cachedCars') {
             sessionCarsCache.cars = [...data.cars];
@@ -105,7 +246,6 @@ const storageUtils = {
         try {
             // Second try: Normal storage
             localStorage.setItem(key, JSON.stringify(data));
-            console.log(`Successfully stored ${key} data`);
             return true;
         } catch (error) {
             console.warn(`Storage warning for ${key}:`, error.message);
@@ -127,8 +267,8 @@ const storageUtils = {
                         console.log('Stored compressed car data (50 items)');
                         return true;
                     } catch (compressError) {
+                        // Fourth try: Ultra minimal data, severely limited count
                         try {
-                            // Fourth try: Ultra minimal data, severely limited count
                             console.warn('Trying minimal compression with very limited data');
                             const minimalData = {
                                 cars: data.cars.slice(0, 20).map(storageUtils.minimalCompressCar),
@@ -221,6 +361,12 @@ const storageUtils = {
             localStorage.clear();
             sessionCarsCache.cars = [];
             sessionCarsCache.timestamp = null;
+            
+            // Also clear in-memory cache
+            inMemoryCarCache.chunks = {};
+            inMemoryCarCache.totalCars = 0;
+            inMemoryCarCache.timestamp = null;
+            
             return true;
         } catch (e) {
             return false;
@@ -253,6 +399,43 @@ const clearOfflineQueue = () => {
     return [];
 };
 
+// Add this helper function to your component
+
+// Improved caching strategy with pagination
+const cacheCarsInChunks = (carsData, pageNumber = 1, append = false) => {
+    const maxCarsPerChunk = 50; // Small enough to not exceed quota
+    
+    try {
+        // If not appending, clear existing cache
+        if (!append) {
+            // Clear all chunked car caches
+            let i = 1;
+            while (localStorage.getItem(`cachedCars_page_${i}`)) {
+                localStorage.removeItem(`cachedCars_page_${i}`);
+                i++;
+            }
+        }
+        
+        // Store current page data
+        const currentChunk = {
+            cars: carsData,
+            timestamp: new Date().toISOString(),
+            page: pageNumber
+        };
+        
+        // Store compressed data
+        try {
+            const serializedData = JSON.stringify(currentChunk);
+            localStorage.setItem(`cachedCars_page_${pageNumber}`, serializedData);
+            console.log(`Stored car data for page ${pageNumber} (${carsData.length} items)`);
+        } catch (e) {
+            console.warn(`Failed to cache cars for page ${pageNumber}:`, e);
+        }
+    } catch (error) {
+        console.error("Error in cacheCarsInChunks:", error);
+    }
+};
+
 const CarShop = () => {
     const carOperations = useContext(CarOperationsContext);
     const { deleteCar, fetchCars: contextFetchCars, lastWebSocketMessage } = carOperations;
@@ -266,10 +449,11 @@ const CarShop = () => {
     const [syncStatus, setSyncStatus] = useState(null); // For showing sync status
     const [offlineData, setOfflineData] = useState({
         cars: [],
-        lastSyncTimestamp: null
-    });
+        lastSyncTimestamp: null    });
     const [realtimeUpdateReceived, setRealtimeUpdateReceived] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [totalCars, setTotalCars] = useState(0);
+    const [allItemsLoaded, setAllItemsLoaded] = useState(false);
     
     // Consolidated filter state
     const [filters, setFilters] = useState({
@@ -435,12 +619,22 @@ const CarShop = () => {
                     setCars(filteredCars);
                     setTotalPages(itemsPerPage === Infinity ? 1 : response.data.totalPages || 1);
                     setLoading(false);
-                    
-                    // Cache the filtered data using our safe storage method
-                    storageUtils.safelyStoreData('cachedCars', {
-                        cars: filteredCars,
-                        timestamp: new Date().toISOString()
-                    });
+                      // Cache the filtered data using pagination to avoid quota issues
+                    if (filteredCars.length > 100) {
+                        console.log(`CarShop: Using paged caching for ${filteredCars.length} cars`);
+                        storageUtils.storePagedCars(
+                            filteredCars, 
+                            currentPage, 
+                            response.data.totalPages || 1,
+                            response.data.totalCars || filteredCars.length,
+                            debouncedFilters
+                        );
+                    } else {
+                        storageUtils.safelyStoreData('cachedCars', {
+                            cars: filteredCars,
+                            timestamp: new Date().toISOString()
+                        });
+                    }
                     clearTimeout(loadingTimeout); // Clear the timeout when we're done
                 })
                 .catch((error) => {
@@ -487,144 +681,93 @@ const CarShop = () => {
         }
         
         return () => clearTimeout(loadingTimeout); // Clean up the timeout if component unmounts during fetch
-    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable, loading]);
-
-    // Function to load more cars from the backend for infinite scroll
+    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable, loading]);    // Function to load more cars from the backend for infinite scroll
     const fetchInfiniteScrollCars = useCallback((pageNumber, append = false, exactCount = null) => {
         console.log(`Fetching infinite scroll cars for page: ${pageNumber}, append: ${append}`);
         setLoading(true);
         
         const params = new URLSearchParams();
         
-        // Always use exactly 16 items per batch for consistent loading
+        // Always use exactly batchSize items per batch for consistent loading
         const ITEMS_PER_BATCH = exactCount || 16;
         
         params.append("page", pageNumber.toString());
         params.append("itemsPerPage", ITEMS_PER_BATCH.toString());
         
+        // Add filters from the main filters state
+        if (filters.makes && filters.makes.length > 0) {
+            params.append("brandId", filters.makes.join(","));
+        }
+        
+        if (filters.fuelTypes && filters.fuelTypes.length > 0) {
+            params.append("fuelType", filters.fuelTypes.join(","));
+        }
+        
+        if (filters.minPrice) {
+            params.append("minPrice", filters.minPrice);
+        }
+        
+        if (filters.maxPrice) {
+            params.append("maxPrice", filters.maxPrice);
+        }
+        
+        if (filters.searchTerm) {
+            params.append("search", filters.searchTerm);
+        }
+        
+        // Apply sorting if present
         if (sortMethod) {
             const [field, direction] = sortMethod.split('-');
             params.append("sortBy", field);
             params.append("sortOrder", direction);
         }
         
-        // Updated: Use brandId instead of make to match backend expectations
-        if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
-            params.append("brandId", debouncedFilters.makes.join(","));
-        }
-        
-        if (debouncedFilters.fuelTypes.length > 0) {
-            params.append("fuelType", debouncedFilters.fuelTypes.join(","));
-        }
-        
-        if (debouncedFilters.minPrice) {
-            params.append("minPrice", debouncedFilters.minPrice);
-        }
-        
-        if (debouncedFilters.maxPrice) {
-            params.append("maxPrice", debouncedFilters.maxPrice);
-        }
-        
-        if (debouncedFilters.searchTerm) {
-            params.append("search", debouncedFilters.searchTerm);
-        }
-        
-        // Don't update URL params for infinite scroll requests
-        
-        if (!isOnline || !serverAvailable) {
-            // Offline mode handling for infinite scroll
-            console.log("Using cached data in offline mode for infinite scroll");
-            const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: ''});
-            if (cachedData && cachedData.cars && cachedData.cars.length > 0) {
-                try {
-                    const startIndex = (pageNumber - 1) * ITEMS_PER_BATCH;
-                    const endIndex = startIndex + ITEMS_PER_BATCH;
-                    const pageCars = cachedData.cars.slice(startIndex, endIndex);
-                    
-                    console.log(`Retrieved ${pageCars.length} cars from cache for infinite scroll`);
-                    
-                    // Check if we've reached the end of available cars
-                    const hasMoreCars = endIndex < cachedData.cars.length;
-                    
-                    setCars(prevCars => {
-                        if (append && prevCars.length > 0) {
-                            // Only append new cars that aren't already displayed
-                            const existingIds = new Set(prevCars.map(car => car.id));
-                            const newCars = pageCars.filter(car => !existingIds.has(car.id));
-                            return [...prevCars, ...newCars];
-                        } else {
-                            return pageCars;
-                        }
-                    });
-                    
-                    setTotalPages(Math.ceil(cachedData.cars.length / ITEMS_PER_BATCH));
-                    
-                    // Always set loading to false when done
-                    setLoading(false);
-                } catch (error) {
-                    console.error("Error processing cached data for infinite scroll:", error);
-                    if (!append) {
-                        setCars([]);
-                        setTotalPages(1);
-                    }
-                    setLoading(false);
-                }
-            } else {
-                console.log("No cached data available");
-                if (!append) {
-                    setCars([]);
-                    setTotalPages(1);
-                }
+        axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
+            .then((response) => {
+                console.log(`API response received for infinite scroll:`, response.data);
                 setLoading(false);
-            }
-        } else {
-            console.log(`Fetching infinite scroll cars with params: ${params.toString()}`);
-            
-            axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
-                .then((response) => {
-                    console.log("API response received for infinite scroll:", response.data);
-                    
-                    if (!response.data || !response.data.cars) {
-                        console.error("Invalid API response format");
-                        setLoading(false);
-                        return;
-                    }
-                    
-                    const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
-                    const filteredCars = (response.data.cars || []).filter(
-                        car => !deletedCarsRegistry.includes(car.id?.toString())
-                    );
-                    
-                    console.log(`Received ${filteredCars.length} new cars for infinite scroll`);
-                    
-                    // Track if this is the last batch based on server response
-                    const isLastPage = pageNumber >= (response.data.totalPages || 1);
-                    const receivedFewerThanRequested = filteredCars.length < ITEMS_PER_BATCH;
-                    
-                    setCars(prevCars => {
-                        if (append && prevCars.length > 0) {
-                            // Only append new cars that aren't already displayed
-                            const existingIds = new Set(prevCars.map(car => car.id));
-                            const newCars = filteredCars.filter(car => !existingIds.has(car.id));
-                            console.log(`Adding ${newCars.length} new unique cars to existing ${prevCars.length}`);
-                            return [...prevCars, ...newCars];
-                        } else {
-                            return filteredCars;
+                
+                const { cars: fetchedCars, currentPage, totalPages, totalCars } = response.data;
+                
+                // Cache this page of results using the new chunked approach from CacheManager
+                CacheManager.cacheCarsInChunks(fetchedCars, pageNumber, append, filters, totalPages, totalCars);
+                
+                // Update total cars count state
+                setTotalCars(totalCars);
+                
+                // Update component state - limit rendered cars to 500 max for performance
+                setCars(prevCars => {
+                    if (append && prevCars.length > 0) {
+                        // Only append new cars that aren't already displayed
+                        const existingIds = new Set(prevCars.map(car => car.id));
+                        const newCars = fetchedCars.filter(car => !existingIds.has(car.id));
+                        console.log(`Adding ${newCars.length} new unique cars to existing ${prevCars.length}`);
+                        
+                        // Limit total rendered cars to prevent browser crash
+                        const combinedCars = [...prevCars, ...newCars];
+                        if (combinedCars.length > 500) {
+                            return combinedCars.slice(combinedCars.length - 500);
                         }
-                    });
-                    
-                    // Always set total pages from response
-                    setTotalPages(response.data.totalPages || 1);
-                    
-                    // Set loading to false immediately to allow next batch
-                    setLoading(false);
-                })
-                .catch((error) => {
-                    console.error("Error fetching cars for infinite scroll:", error);
-                    setLoading(false);
+                        return combinedCars;
+                    } else {
+                        return fetchedCars;
+                    }
                 });
-        }
-    }, [sortMethod, debouncedFilters, isOnline, serverAvailable]);
+                
+                // Update pagination state
+                setTotalPages(totalPages);
+                setTotalCars(totalCars);
+                
+                // Check if we've loaded all items
+                if (currentPage >= totalPages) {
+                    setAllItemsLoaded(true);
+                }
+            })
+            .catch((error) => {
+                console.error("Error fetching cars for infinite scroll:", error);
+                setLoading(false);
+            });
+    }, [filters, sortMethod]);
 
     // Function to filter out deleted cars from the current state or cache
     const filterOutDeletedCars = useCallback(() => {
@@ -1064,35 +1207,35 @@ const CarShop = () => {
     };
     
     // Function to clear the offline queue
-    const clearOfflineQueue = () => {
-        localStorage.removeItem('offlineOperationsQueue');
-        console.log('CarShop: Offline operations queue cleared');
+    // const clearOfflineQueue = () => {
+    //     localStorage.removeItem('offlineOperationsQueue');
+    //     console.log('CarShop: Offline operations queue cleared');
         
-        // Update any temporary styling on cached cars using safe methods
-        const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: new Date().toISOString()});
-        if (cachedData && cachedData.cars) {
-            cachedData.cars = cachedData.cars.map(car => ({
-                ...car,
-                _isTemp: false // Remove all temp flags
-            }));
-            storageUtils.safelyStoreData('cachedCars', cachedData);
-        }
+    //     // Update any temporary styling on cached cars using safe methods
+    //     const cachedData = storageUtils.safelyGetData('cachedCars', {cars: [], timestamp: new Date().toISOString()});
+    //     if (cachedData && cachedData.cars) {
+    //         cachedData.cars = cachedData.cars.map(car => ({
+    //             ...car,
+    //             _isTemp: false // Remove all temp flags
+    //         }));
+    //         storageUtils.safelyStoreData('cachedCars', cachedData);
+    //     }
         
-        // Update UI to remove temporary styling
-        setCars(prevCars => prevCars.map(car => ({
-            ...car,
-            _isTemp: false
-        })));
+    //     // Update UI to remove temporary styling
+    //     setCars(prevCars => prevCars.map(car => ({
+    //         ...car,
+    //         _isTemp: false
+    //     })));
         
-        // Force refresh of UI state
-        setSyncStatus('All pending changes cleared');
-        setTimeout(() => {
-            setSyncStatus(null);
-        }, 3000);
+    //     // Force refresh of UI state
+    //     setSyncStatus('All pending changes cleared');
+    //     setTimeout(() => {
+    //         setSyncStatus(null);
+    //     }, 3000);
         
-        // Return an empty array to represent the cleared queue
-        return [];
-    };
+    //     // Return an empty array to represent the cleared queue
+    //     return [];
+    // };
 
     const toggleGeneration = () => {
         setIsGenerating((prev) => !prev);
@@ -1126,6 +1269,7 @@ const CarShop = () => {
                         currentPage={currentPage}
                         setCurrentPage={setCurrentPage}
                         totalPages={totalPages}
+                        totalCars={totalCars} // Add this prop
                         itemsPerPage={itemsPerPage}
                         setItemsPerPage={setItemsPerPage}
                         sortMethod={sortMethod}

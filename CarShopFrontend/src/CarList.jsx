@@ -3,6 +3,8 @@ import "./CarList.css";
 import { Link } from "react-router-dom";
 import config from "./config.js";
 import InfiniteScroller from "./InfiniteScroller.jsx";
+import { FixedSizeList as List } from 'react-window';
+import CarCard from './CarCard.jsx';
 
 // Define the component first
 const CarListComponent = ({ 
@@ -11,6 +13,7 @@ const CarListComponent = ({
     currentPage, 
     setCurrentPage,
     totalPages,
+    totalCars, // Added missing prop
     itemsPerPage,
     setItemsPerPage,
     sortMethod,
@@ -52,17 +55,21 @@ const CarListComponent = ({
     
     // Simplified infinite scroll state management
     useEffect(() => {
-        setUseInfiniteScroll(itemsPerPage === Infinity);
+        // Never use Infinity for itemsPerPage, use a more reasonable value
         if (itemsPerPage === Infinity) {
-            // Reset state when switching to infinite scroll
+            // Instead of setting page to 1 and loading everything
+            // Just activate infinite scroll mode but keep batch loading
+            setUseInfiniteScroll(true);
             setInfiniteScrollPage(1);
             setAllItemsLoaded(false);
             totalLoadedItems.current = 0;
             
-            // Initial load for infinite scroll with exactly 16 items
+            // Initial load for infinite scroll with exactly batchSize items
             setTimeout(() => {
                 fetchInfiniteScrollCars(1, false, batchSize);
             }, 0);
+        } else {
+            setUseInfiniteScroll(false);
         }
     }, [itemsPerPage, fetchInfiniteScrollCars]);
     
@@ -194,16 +201,20 @@ const CarListComponent = ({
                 <div className="control-item">
                     <label htmlFor="itemsPerPage">Items per page:</label>
                     <select 
-                        id="itemsPerPage"
-                        value={itemsPerPage === Infinity ? "unlimited" : itemsPerPage} 
-                        onChange={handleItemsPerPageChange}
-                        className={disableSortAndFilter ? "disabled-appearance" : ""}
-                    >
-                        <option value={4}>4</option>
-                        <option value={8}>8</option>
-                        <option value={12}>12</option>
-                        <option value={16}>16</option>
-                        <option value="unlimited">Unlimited (Scroll)</option>
+                        value={itemsPerPage === Infinity ? "infinite" : itemsPerPage}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "infinite") {
+                                setItemsPerPage(Infinity); // This will trigger our modified useEffect
+                            } else {
+                                setItemsPerPage(Number(value));
+                            }
+                        }}
+                        >
+                        <option value="8">8 per page</option>
+                        <option value="16">16 per page</option>
+                        <option value="32">32 per page</option>
+                        <option value="infinite">Infinite scroll</option>
                     </select>
                 </div>
                 
@@ -244,33 +255,43 @@ const CarListComponent = ({
                             <p>Try adjusting your search criteria or check back later.</p>
                         </div>
                     </div>
-                ) : (
-                    cars.map((car) => (
-                        <div key={car.id} className={`car-card ${car._isTemp ? 'temp-item' : ''}`}>
-                            <Link to={`/CarDetail/${car.id}`} className="detail-link">
-                                <img
-                                    className="car-img"
-                                    src={car.img ? 
-                                        (car.img.startsWith('data:') 
-                                            ? car.img // Use Base64 data directly
-                                            : car.img.startsWith('http') 
-                                                ? car.img 
-                                                : `${config.UPLOADS_PATH}${car.img}`) 
-                                        : '/placeholder.jpeg'}
-                                    alt={car.model}
-                                    loading="lazy"
-                                    onError={(e) => {
-                                        e.target.onerror = null; // Prevent infinite loop
-                                        e.target.src = '/placeholder.jpeg'; // Use local placeholder image
-                                    }}
-                                />
-                                <h3>{car.make}</h3>
-                                <h4>{car.model}</h4>
-                                <p>{car.keywords}</p>
-                                <p className="price">${car.price}</p>
-                            </Link>
+                ) : (                    useInfiniteScroll ? (
+                        <div className="car-list-container">
+                            <div className="car-cards">
+                                {cars.map((car) => (
+                                    <CarCard
+                                        car={car}
+                                        key={car.id}
+                                        onDelete={handleDelete}
+                                        onUpdate={handleUpdate}
+                                        isOffline={isOffline}
+                                    />
+                                ))}
+                            </div>
+                            
+                            <InfiniteScroller
+                                hasMore={!allItemsLoaded}
+                                loading={loading}
+                                onLoadMore={handleLoadMore}
+                                batchSize={batchSize}
+                                endMessage={<p>You've seen all {totalCars} cars!</p>}
+                            />
                         </div>
-                    ))
+                    ) : (
+                        <div className="car-list-container">
+                            <div className="car-cards">
+                                {cars.map((car) => (
+                                    <CarCard
+                                        car={car}
+                                        key={car.id}
+                                        onDelete={handleDelete}
+                                        onUpdate={handleUpdate}
+                                        isOffline={isOffline}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )
                 )}
                 
                 {/* Use the new InfiniteScroller component for better batch loading */}

@@ -502,6 +502,9 @@ function App() {
                         <Route path="/brands/:id" element={<BrandDetail />} />
                         <Route path="/add-brand" element={<AddBrand />} />
                         <Route path="/brands/:id/edit" element={<UpdateBrand />} />
+                        
+                        {/* Statistics route */}
+                        <Route path="/statistics" element={<StatisticsPage />} />
                     </Routes>   
                     <Footer />
                 </Router>
