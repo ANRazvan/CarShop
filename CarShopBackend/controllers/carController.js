@@ -316,14 +316,17 @@ const getCars = async (req, res) => {
       order.push([sortBy, sortOrder.toUpperCase()]);
     } else {
       order.push(['id', 'ASC']);
-    }
-    
-    // Include Brand in results
+    }    // Include Brand and User in results
     const include = [
       {
         model: Brand,
         as: 'brand',
         attributes: ['id', 'name', 'country'] // Include only necessary brand attributes
+      },
+      {
+        model: require('../models/User'),
+        as: 'owner',
+        attributes: ['id', 'username', 'role'] // Include only necessary user attributes
       }
     ];
     
@@ -388,12 +391,15 @@ const getCars = async (req, res) => {
 // Get car by ID
 const getCarById = async (req, res) => {
   try {
-    const carId = parseInt(req.params.id);
-    const car = await Car.findByPk(carId, {
+    const carId = parseInt(req.params.id);    const car = await Car.findByPk(carId, {
       include: [
         {
           model: Brand,
           as: 'brand'
+        },        {
+          model: require('../models/User'),
+          as: 'owner',
+          attributes: ['id', 'username', 'role'] // Include only necessary user attributes
         }
       ]
     });
@@ -415,6 +421,11 @@ const createCar = async (req, res) => {
     const carData = {
       ...req.body
     };
+    
+    // Associate car with the current user if authenticated
+    if (req.user) {
+      carData.userId = req.user.id;
+    }
     
     // Process image data if a file was uploaded
     if (req.file) {
@@ -486,6 +497,11 @@ const updateCar = async (req, res) => {
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    // Check if user owns this car or is an admin
+    if (req.user && car.userId && car.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You do not have permission to update this car' });
     }
     
     // Update car data
@@ -565,6 +581,11 @@ const deleteCar = async (req, res) => {
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    // Check if user owns this car or is an admin
+    if (req.user && car.userId && car.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You do not have permission to delete this car' });
     }
     
     // Delete from database

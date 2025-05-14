@@ -466,10 +466,9 @@ const CarShop = () => {
     
     // Debounce the filters to prevent too many requests for text inputs
     const debouncedFilters = useDebounce(filters, 300);
-    
-    const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
+      const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
     const [itemsPerPage, setItemsPerPage] = useState(searchParams.get("itemsPerPage") ? 
-        parseInt(searchParams.get("itemsPerPage")) : Infinity);
+        parseInt(searchParams.get("itemsPerPage")) : 8);
     const [sortMethod, setSortMethod] = useState('');
     
     // Check if server is available
@@ -508,11 +507,10 @@ const CarShop = () => {
         const params = new URLSearchParams();
         
         params.append("page", currentPage.toString());
-        
-        // For unlimited option, use -1 as itemsPerPage
+          // For unlimited option, use 8 as itemsPerPage instead of -1
         if (itemsPerPage === Infinity) {
-            params.append("itemsPerPage", "-1");
-            console.log("CarShop: Requesting unlimited cars");
+            params.append("itemsPerPage", "8");
+            console.log("CarShop: Requesting 8 cars per page instead of unlimited");
         } else {
             params.append("itemsPerPage", itemsPerPage.toString());
             console.log(`CarShop: Requesting ${itemsPerPage} cars per page`);

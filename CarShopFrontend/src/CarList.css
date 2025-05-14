@@ -43,6 +43,12 @@
     font-size: 16px; /* smaller price font */
 }
 
+.car-owner {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
 body {
     margin: 0;
     padding: 0;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Navbar.css";
 import config from "./config.js";
 import axios from "axios";
+import { useAuth } from "./hooks/useAuth";
 
 // Helper function to get offline queue
 const getOfflineQueue = () => {
@@ -16,6 +17,8 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [serverAvailable, setServerAvailable] = useState(true);
     const [syncStatus, setSyncStatus] = useState(null);
+    const { currentUser, isAuthenticated, isAdmin, logout } = useAuth();
+    const navigate = useNavigate();
 
     // Check if server is available
     const checkServerAvailability = () => {
@@ -241,11 +244,15 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                     </Link>
                                 </div>
                             )}
-                        </div>
-                        
+                        </div>                        
                         {/* Statistics link */}
                         <Link to="/statistics" className="nav-link">Statistics</Link>
                         
+                        {/* User Monitoring - Only show for admin users */}
+                        {isAdmin() && (
+                            <Link to="/user-monitor" className="nav-link">User Monitor</Link>
+                        )}
+
                         {/* Add buttons for sync and restore functionality */}
                         {getOfflineQueue().length > 0 && (
                             <>
@@ -260,6 +267,39 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                         <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
                             Restore All Cars
                         </button>
+                        
+                        {/* Auth buttons */}
+                        {isAuthenticated() ? (
+                            <div className="dropdown auth-dropdown">
+                                <button 
+                                    className={`dropdown-toggle ${activeDropdown === 'profile' ? 'active' : ''}`} 
+                                    onClick={() => toggleDropdown('profile')}
+                                >
+                                    {currentUser?.username || 'Account'} 
+                                    <span className="dropdown-arrow">▼</span>
+                                </button>
+                                {activeDropdown === 'profile' && (
+                                    <div className="dropdown-menu">
+                                        <div className="dropdown-item user-info">
+                                            <span className="username">{currentUser?.username}</span>
+                                            <span className={`role-badge ${currentUser?.role}`}>{currentUser?.role}</span>
+                                        </div>
+                                        <button 
+                                            className="dropdown-item" 
+                                            onClick={() => {
+                                                logout();
+                                                handleMenuItemClick();
+                                                navigate('/');
+                                            }}
+                                        >
+                                            Logout
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <Link to="/login" className="login-button">Login</Link>
+                        )}
                     </div>
                 </div>
             </nav>

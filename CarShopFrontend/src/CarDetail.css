@@ -50,6 +50,17 @@
     font-weight: bold;
 }
 
+.car-owner {
+    font-size: 16px;
+    margin-bottom: 1rem;
+    color: #666;
+}
+
+.owner-name {
+    font-weight: 500;
+    color: #333;
+}
+
 .button-group {
     margin-top: 10px;
 }

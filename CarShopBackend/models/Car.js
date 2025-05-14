@@ -37,8 +37,7 @@ const Car = sequelize.define('Car', {
   img: { 
     type: DataTypes.TEXT('long'),  // Change to TEXT type to store Base64 encoded image
     comment: 'Base64 encoded image data'
-  },
-  imgType: {
+  },  imgType: {
     type: DataTypes.STRING, // Store the MIME type (e.g. image/jpeg)
     defaultValue: 'image/jpeg'
   },
@@ -47,6 +46,22 @@ const Car = sequelize.define('Car', {
     allowNull: true, // Make this optional during migration
     references: {
       model: 'Brands', // Note Sequelize pluralizes table names
+      key: 'id'
+    }
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // Allow null for compatibility with existing data
+    references: {
+      model: 'Users', // Sequelize pluralizes table names
+      key: 'id'
+    }
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Users',
       key: 'id'
     }
   }

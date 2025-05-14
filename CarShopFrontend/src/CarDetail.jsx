@@ -265,11 +265,10 @@ const CarDetail = () => {
                         e.target.onerror = null;
                         e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
                     }}
-                />
-                <div className="car-details">
+                />                <div className="car-details">
                     <h1 className="car-title">{car.make} {car.model}</h1>
-                    <p className="car-subtitle">{car.keywords}</p>
-                    <h2 className="price">${car.price}</h2>
+                    <p className="car-subtitle">{car.keywords}</p>                    <h2 className="price">${car.price}</h2>
+                    {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}
                     <div className="button-group">
                         <button className="add-to-cart">Add to cart</button>
                         <button className="delete" onClick={handleDelete}>Delete</button>

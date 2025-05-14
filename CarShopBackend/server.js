@@ -8,10 +8,13 @@ const http = require('http');
 const carRoutes = require('./routes/cars');
 const brandRoutes = require('./routes/brands');
 const statisticsRoutes = require('./routes/statistics'); // Added statistics routes
+const authRoutes = require('./routes/auth');
+const monitoringRoutes = require('./routes/monitoring');
 const { connectDB, sequelize } = require('./config/pgdb');
 const Car = require('./models/Car');
 const Brand = require('./models/Brand');
 const setupAssociations = require('./models/associations');
+const userMonitor = require('./services/userMonitor');
 require('dotenv').config();
 
 // Initialize model associations
@@ -30,7 +33,7 @@ app.use(express.urlencoded({ extended: true, limit: '2048mb' }));
 // Configure CORS with explicit options
 app.use(cors({
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -154,6 +157,9 @@ app.use(express.json());
 app.locals.broadcast = broadcast;
 
 // Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/monitoring', monitoringRoutes);
+
 app.use('/api/cars', (req, res, next) => {
     const originalJson = res.json;
     
@@ -296,8 +302,7 @@ connectDB()
     server.listen(port, async () => {
       console.log(`Server running on port ${port}`);
       console.log(`WebSocket server is ready`);
-      
-      try {
+        try {
         // Initialize brands data if empty
         const { populateInitialBrands } = require('./controllers/brandController');
         const brandsCreated = await populateInitialBrands();
@@ -316,6 +321,10 @@ connectDB()
         } else {
           console.log(`Server started with ${carCount} existing cars`);
         }
+        
+        // Start the user activity monitoring service
+        userMonitor.start();
+        console.log('User activity monitoring service started');
       } catch (error) {
         console.error('Error initializing database:', error);
       }

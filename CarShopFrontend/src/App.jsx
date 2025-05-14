@@ -16,6 +16,10 @@ import AddBrand from './AddBrand.jsx';
 import StatisticsPage from './StatisticsPage.jsx';  
 import UpdateBrand from './UpdateBrand.jsx';
 import { BrandOperationsProvider } from './BrandOperationsContext.jsx';
+// Import auth and user monitoring components
+import Login from './Login.jsx';
+import UserMonitor from './UserMonitor.jsx';
+import { AuthProvider } from './AuthContext.jsx';
 import config from "./config.js";
 
 // Queue for storing offline operations
@@ -482,34 +486,38 @@ function App() {
         deleteCar: typeof deleteCar === 'function',
         fetchCars: typeof fetchCars === 'function',
         websocketConnected: websocket.current?.readyState === WebSocket.OPEN
-    });
-
-    return (
-        <CarOperationsContext.Provider value={carOperations}>
-            <BrandOperationsProvider>
-                <Router>
-                    <Navbar wsStatus={wsConnectionStatus} />
-                    <Routes>
-                        <Route path="/" element={<CarShop />} />
-                        <Route path="/cars/:id" element={<CarDetail />} />
-                        {/* Add an additional route that matches /CarDetail/:id pattern */}
-                        <Route path="/CarDetail/:id" element={<CarDetail />} />
-                        <Route path="/add-car" element={<AddCar />} />
-                        <Route path="/update-car/:id" element={<UpdateCar />} />
-                        
-                        {/* Brand routes */}
-                        <Route path="/brands" element={<BrandList />} />
-                        <Route path="/brands/:id" element={<BrandDetail />} />
-                        <Route path="/add-brand" element={<AddBrand />} />
-                        <Route path="/brands/:id/edit" element={<UpdateBrand />} />
-                        
-                        {/* Statistics route */}
-                        <Route path="/statistics" element={<StatisticsPage />} />
-                    </Routes>   
-                    <Footer />
-                </Router>
-            </BrandOperationsProvider>
-        </CarOperationsContext.Provider>
+    });    return (
+        <AuthProvider>
+            <CarOperationsContext.Provider value={carOperations}>
+                <BrandOperationsProvider>
+                    <Router>
+                        <Navbar wsStatus={wsConnectionStatus} />
+                        <Routes>
+                            <Route path="/" element={<CarShop />} />
+                            <Route path="/cars/:id" element={<CarDetail />} />
+                            {/* Add an additional route that matches /CarDetail/:id pattern */}
+                            <Route path="/CarDetail/:id" element={<CarDetail />} />
+                            <Route path="/add-car" element={<AddCar />} />
+                            <Route path="/update-car/:id" element={<UpdateCar />} />
+                            
+                            {/* Brand routes */}
+                            <Route path="/brands" element={<BrandList />} />
+                            <Route path="/brands/:id" element={<BrandDetail />} />
+                            <Route path="/add-brand" element={<AddBrand />} />
+                            <Route path="/brands/:id/edit" element={<UpdateBrand />} />
+                            
+                            {/* Statistics route */}
+                            <Route path="/statistics" element={<StatisticsPage />} />
+                            
+                            {/* Authentication and User Monitoring routes */}
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/user-monitor" element={<UserMonitor />} />
+                        </Routes>   
+                        <Footer />
+                    </Router>
+                </BrandOperationsProvider>
+            </CarOperationsContext.Provider>
+        </AuthProvider>
     );
 }
 

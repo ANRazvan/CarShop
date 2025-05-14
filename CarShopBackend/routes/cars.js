@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { validateCarData } = require('../controllers/carController');
 const Car = require('../models/Car'); // Import the Car model
+const { authenticate, authorizeAdmin } = require('../middleware/authMiddleware');
 
 // Setup multer for file uploads
 const storage = multer.diskStorage({
@@ -58,6 +59,8 @@ const upload = multer({
 
 // Import controller functions - use database controllers instead of in-memory data
 const { getCars, getCarById, createCar, updateCar, deleteCar, populateCars } = require('../controllers/carController');
+const { auth, logAction } = require('../middleware/authMiddleware');
+const { getMyCars, checkCarOwnership, assignCarOwner } = require('../controllers/userCarController');
 
 // Debugging endpoint to check all cars (without pagination/filtering)
 router.get('/debug/all/cars', async (req, res) => {
@@ -113,8 +116,8 @@ router.get('/', getCars);
 // GET car by ID - use the database controller
 router.get('/:id', getCarById);
 
-// POST generate random cars
-router.post('/generate/:count', (req, res) => {
+// POST generate random cars - admin only
+router.post('/generate/:count', authenticate, authorizeAdmin, (req, res) => {
     try {
         const count = parseInt(req.params.count);
         
@@ -155,20 +158,25 @@ router.post('/generate/:count', (req, res) => {
     }
 });
 
-// POST create a new car - use the database controller
-router.post('/', upload.single('image'), createCar);
+// POST create a new car - use the database controller (requires authentication)
+router.post('/', authenticate, upload.single('image'), createCar);
 
-// PUT update an existing car - use the database controller
-router.put('/:id', upload.single('image'), updateCar);
+// PUT update an existing car - use the database controller (requires authentication)
+router.put('/:id', authenticate, upload.single('image'), updateCar);
 
-// DELETE car by ID - use the database controller
-router.delete('/:id', deleteCar);
+// DELETE car by ID - use the database controller (requires authentication)
+router.delete('/:id', authenticate, deleteCar);
 
-// POST upload video for a car
-router.post('/:id/video', upload.single('video'), async (req, res) => {
+// POST upload video for a car (requires authentication)
+router.post('/:id/video', authenticate, upload.single('video'), async (req, res) => {
     try {
         const carId = parseInt(req.params.id);
         const car = await Car.findByPk(carId);
+        
+        // Check if user owns this car or is an admin
+        if (req.user && car.userId && car.userId !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'You do not have permission to modify this car' });
+        }
         
         if (!car) {
             return res.status(404).json({ message: "Car not found" });
@@ -199,11 +207,16 @@ router.post('/:id/video', upload.single('video'), async (req, res) => {
     }
 });
 
-// DELETE video for a car
-router.delete('/:id/video', async (req, res) => {
+// DELETE video for a car (requires authentication)
+router.delete('/:id/video', authenticate, async (req, res) => {
     try {
         const carId = parseInt(req.params.id);
         const car = await Car.findByPk(carId);
+        
+        // Check if user owns this car or is an admin
+        if (req.user && car.userId && car.userId !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'You do not have permission to modify this car' });
+        }
         
         if (!car) {
             return res.status(404).json({ message: "Car not found" });

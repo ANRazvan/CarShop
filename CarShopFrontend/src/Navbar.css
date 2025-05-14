@@ -260,3 +260,53 @@
 .reset-button:hover {
   background-color: #c0392b;
 }
+
+/* Auth styling */
+.auth-dropdown {
+  margin-left: 15px;
+}
+
+.auth-dropdown .dropdown-menu {
+  width: 200px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.role-badge {
+  display: inline-block;
+  font-size: 0.7em;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-top: 4px;
+  background-color: #e0e0e0;
+  color: #333;
+  text-transform: capitalize;
+}
+
+.role-badge.admin {
+  background-color: #ffcc00;
+  color: #333;
+}
+
+.login-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  margin-left: 15px;
+  cursor: pointer;
+  font-size: 0.9em;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: #45a049;
+  text-decoration: none;
+}

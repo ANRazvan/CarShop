@@ -98,11 +98,11 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
             <img src={imageUrl} alt={`${car.make} ${car.model}`} />
             {car._isTemp && <div className="temp-badge">Offline</div>}
           </div>
-          <div className="car-info">
-            <h3>{car.make} {car.model}</h3>
+          <div className="car-info">            <h3>{car.make} {car.model}</h3>
             <p>Year: {car.year}</p>
             <p>Price: ${car.price?.toLocaleString()}</p>
             <p>Fuel Type: {car.fuelType}</p>
+            {car.owner && <p className="car-owner">Owner: {car.owner.username}</p>}
             <div className="card-actions">
               <Link to={`/cars/${car.id}`} className="view-button">View Details</Link>
               <button onClick={handleEdit} className="edit-button" disabled={isOffline}>Edit</button>
