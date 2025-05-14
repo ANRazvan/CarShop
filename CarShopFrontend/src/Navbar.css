@@ -150,6 +150,11 @@
     border-radius: 50%;
     margin-right: 6px;
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
 }
 
 .status-indicator.connected {
@@ -185,6 +190,8 @@
 
 .status-text {
     font-size: 0.75rem;
+    color: #666;
+    font-size: 12px;
 }
 
 .nav-links {
@@ -309,4 +316,21 @@
 .login-button:hover {
   background-color: #45a049;
   text-decoration: none;
+}
+
+.network-status, .server-status {
+    display: flex;
+    align-items: center;
+    margin-left: 15px;
+    font-size: 0.8rem;
+}
+
+.status-indicator.online,
+.status-indicator.available {
+    background-color: #4CAF50; /* Green */
+}
+
+.status-indicator.offline,
+.status-indicator.unavailable {
+    background-color: #F44336; /* Red */
 }

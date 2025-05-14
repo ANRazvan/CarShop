@@ -159,13 +159,13 @@ router.post('/generate/:count', authenticate, authorizeAdmin, (req, res) => {
 });
 
 // POST create a new car - use the database controller (requires authentication)
-router.post('/', authenticate, upload.single('image'), createCar);
+router.post('/', authenticate, logAction('CREATE', 'CAR'), upload.single('image'), createCar);
 
 // PUT update an existing car - use the database controller (requires authentication)
-router.put('/:id', authenticate, upload.single('image'), updateCar);
+router.put('/:id', authenticate, logAction('UPDATE', 'CAR'), upload.single('image'), updateCar);
 
 // DELETE car by ID - use the database controller (requires authentication)
-router.delete('/:id', authenticate, deleteCar);
+router.delete('/:id', authenticate, logAction('DELETE', 'CAR'), deleteCar);
 
 // POST upload video for a car (requires authentication)
 router.post('/:id/video', authenticate, upload.single('video'), async (req, res) => {

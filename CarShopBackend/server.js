@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: true, limit: '2048mb' }));
 // Configure CORS with explicit options
 app.use(cors({
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 

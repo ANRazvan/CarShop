@@ -48,9 +48,15 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
         // Initial check
         checkServerAvailability();
 
+        // Set up periodic server availability checks every 30 seconds
+        const intervalId = setInterval(() => {
+            checkServerAvailability();
+        }, 30000);
+
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
+            clearInterval(intervalId);
         };
     }, []);
 
@@ -200,6 +206,18 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                             <span className={`status-indicator ${wsStatus}`}></span>
                             <span className="status-text">
                                 {getStatusText(wsStatus)}
+                            </span>
+                        </div>
+                        <div className="network-status">
+                            <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
+                            <span className="status-text">
+                                {isOnline ? 'Online' : 'Offline'}
+                            </span>
+                        </div>
+                        <div className="server-status">
+                            <span className={`status-indicator ${serverAvailable ? 'available' : 'unavailable'}`}></span>
+                            <span className="status-text">
+                                {serverAvailable ? 'Server available' : 'Server unavailable'}
                             </span>
                         </div>
                     </div>

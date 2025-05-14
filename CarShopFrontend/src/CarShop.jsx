@@ -11,6 +11,7 @@ import { faker } from "@faker-js/faker";
 import config from './config.js';
 import Charts from "./Charts.jsx";
 import CacheManager from './utils/CacheManager.js';
+import DebugPanel from "./DebugPanel.jsx";
 
 // Global cache for pagination chunks (in memory)
 const inMemoryCarCache = {
@@ -454,6 +455,9 @@ const CarShop = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [totalCars, setTotalCars] = useState(0);
     const [allItemsLoaded, setAllItemsLoaded] = useState(false);
+    const [debugPanelExpanded, setDebugPanelExpanded] = useState(false);
+    const [lastServerCheck, setLastServerCheck] = useState(null);
+    const [lastDeleteResult, setLastDeleteResult] = useState(null);
     
     // Consolidated filter state
     const [filters, setFilters] = useState({
@@ -469,17 +473,37 @@ const CarShop = () => {
       const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
     const [itemsPerPage, setItemsPerPage] = useState(searchParams.get("itemsPerPage") ? 
         parseInt(searchParams.get("itemsPerPage")) : 8);
-    const [sortMethod, setSortMethod] = useState('');
-    
-    // Check if server is available
+    const [sortMethod, setSortMethod] = useState('');    // Check if server is available
     const checkServerAvailability = useCallback(() => {
+        console.log("Checking server availability...");
         axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`)
             .then(() => {
+                console.log("Server availability check: SERVER IS AVAILABLE");
+                const serverStatusChanged = !serverAvailable;
+                if (serverStatusChanged) {
+                    console.log("Server status changed: OFFLINE → ONLINE");
+                }
                 setServerAvailable(true);
+                setLastServerCheck(new Date().toISOString());
+                
+                // Just set a flag to trigger the sync in a useEffect that runs after
+                // all functions have been defined
+                if (serverStatusChanged && isOnline) {
+                    const queue = getOfflineQueue();
+                    if (queue && queue.length > 0) {
+                        console.log(`Found ${queue.length} operations to sync now that server is available`);
+                        // We'll handle the actual sync in a useEffect
+                    }
+                }
             })
             .catch((error) => {
                 console.error("Server unavailable:", error);
+                if (serverAvailable) {
+                    console.log("Server status changed: ONLINE → OFFLINE");
+                }
                 setServerAvailable(false);
+                setLastServerCheck(new Date().toISOString());
+                
                 // Cache the current data for offline use if we're going offline
                 if (cars.length > 0) {
                     storageUtils.safelyStoreData('cachedCars', {
@@ -488,7 +512,7 @@ const CarShop = () => {
                     });
                 }
             });
-    }, [cars]);
+    }, [cars, serverAvailable, isOnline]);
 
     // Memoize fetchCars to prevent unnecessary re-creation
     const fetchCars = useCallback(() => {
@@ -508,9 +532,9 @@ const CarShop = () => {
         
         params.append("page", currentPage.toString());
           // For unlimited option, use 8 as itemsPerPage instead of -1
-        if (itemsPerPage === Infinity) {
-            params.append("itemsPerPage", "8");
-            console.log("CarShop: Requesting 8 cars per page instead of unlimited");
+        if (itemsPerPage === -1 || itemsPerPage === Infinity) {
+            params.append("itemsPerPage", "100");
+            console.log("CarShop: Requesting 100 cars per page instead of unlimited");
         } else {
             params.append("itemsPerPage", itemsPerPage.toString());
             console.log(`CarShop: Requesting ${itemsPerPage} cars per page`);
@@ -786,11 +810,12 @@ const CarShop = () => {
     const refreshCars = useCallback(() => {
         fetchCars();
         filterOutDeletedCars();
-    }, [fetchCars, filterOutDeletedCars]);
-
-    // Sync offline changes when we're back online
+    }, [fetchCars, filterOutDeletedCars]);    // Sync offline changes when we're back online
     const syncOfflineChanges = useCallback(async () => {
-        if (!isOnline || !serverAvailable) return;
+        if (!isOnline || !serverAvailable) {
+            console.log("Cannot sync changes - offline or server unavailable");
+            return;
+        }
         
         console.log("CarShop: Starting sync of offline changes");
         
@@ -1034,6 +1059,12 @@ const CarShop = () => {
 
         // Initial check
         checkServerAvailability();
+        
+        // Set up periodic server availability checks every 30 seconds
+        const intervalId = setInterval(() => {
+            console.log("Performing periodic server availability check");
+            checkServerAvailability();
+        }, 30000);
 
         // Load cached data if available
         const cachedData = localStorage.getItem('cachedCars');
@@ -1048,6 +1079,7 @@ const CarShop = () => {
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
+            clearInterval(intervalId); // Clean up interval on unmount
         };
     }, [checkServerAvailability, syncOfflineChanges]);
 
@@ -1239,6 +1271,131 @@ const CarShop = () => {
         setIsGenerating((prev) => !prev);
     };
 
+    // Watch for server availability changes and trigger sync if needed
+    useEffect(() => {
+        // Don't try to sync on initial load, only when serverAvailable changes from false to true
+        if (isOnline && serverAvailable) {
+            const queue = getOfflineQueue();
+            if (queue && queue.length > 0) {
+                console.log(`CarShop: Server is now available with ${queue.length} pending operations in queue`);
+                // Small timeout to ensure all state updates are complete
+                const timeoutId = setTimeout(() => {
+                    if (typeof syncOfflineChanges === 'function') {
+                        syncOfflineChanges();
+                    } else {
+                        console.error("syncOfflineChanges is not a function yet");
+                    }
+                }, 500);
+                return () => clearTimeout(timeoutId);
+            }
+        }
+    }, [isOnline, serverAvailable]);
+
+    // Function to test delete operations with detailed logging
+    const testDeleteOperation = async (id, forceMode = null) => {
+        if (!id) {
+            const randomCar = cars[Math.floor(Math.random() * cars.length)];
+            id = randomCar ? randomCar.id : null;
+            if (!id) {
+                setLastDeleteResult({
+                    success: false,
+                    message: "No cars available to test deletion",
+                    timestamp: new Date().toISOString()
+                });
+                return;
+            }
+        }
+        
+        console.log(`CarShop: Testing delete operation for car ID ${id} with forceMode=${forceMode}`);
+        
+        // Track the current online/server state
+        const currentOnlineState = isOnline;
+        const currentServerState = serverAvailable;
+        
+        try {
+            // If forceMode is specified, override the current state temporarily
+            if (forceMode === 'online') {
+                console.log("CarShop: Forcing ONLINE mode for this test");
+                // We're not changing the actual state variables to avoid re-renders
+                // Instead, we'll override inside the local test function
+                
+                // Check with direct server call to verify it's truly available
+                const serverCheck = await axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`);
+                console.log("CarShop: Direct server check result:", serverCheck.status);
+            } else if (forceMode === 'offline') {
+                console.log("CarShop: Forcing OFFLINE mode for this test");
+            }
+            
+            // Use the context's deleteCar function directly
+            console.log(`CarShop: Calling deleteCar with ID=${id}`);
+            const result = await deleteCar(id);
+            
+            console.log("CarShop: Delete operation result:", result);
+            
+            // Check if the car was actually deleted from the server
+            let serverVerification = "Not checked";
+            if (currentOnlineState && currentServerState) {
+                try {
+                    // Try to fetch the car to see if it's really deleted
+                    await axios.get(`${config.API_URL}/api/cars/${id}`);
+                    // If we get here, the car still exists on the server
+                    serverVerification = "Failed - Car still exists on server";
+                } catch (error) {
+                    if (error.response && error.response.status === 404) {
+                        // 404 means the car is gone, which is what we want
+                        serverVerification = "Success - Car confirmed deleted on server";
+                    } else {
+                        serverVerification = `Error checking - ${error.message}`;
+                    }
+                }
+            }
+            
+            // Check if car is in the offline queue
+            const offlineQueue = getOfflineQueue();
+            const inQueue = offlineQueue.some(op => 
+                op.type === 'DELETE' && op.id.toString() === id.toString()
+            );
+            
+            // Check if car ID is in the deletedCarsRegistry
+            const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+            const inRegistry = deletedCarsRegistry.includes(id.toString());
+            
+            setLastDeleteResult({
+                success: true,
+                id,
+                result,
+                timestamp: new Date().toISOString(),
+                networkState: {
+                    online: currentOnlineState,
+                    serverAvailable: currentServerState,
+                    forceMode
+                },
+                serverVerification,
+                offlineStatus: {
+                    inQueue,
+                    inRegistry
+                }
+            });
+            
+            // Refresh UI to reflect changes
+            refreshCars();
+            
+        } catch (error) {
+            console.error("CarShop: Error in test delete operation:", error);
+            setLastDeleteResult({
+                success: false,
+                id,
+                error: error.message,
+                timestamp: new Date().toISOString(),
+                networkState: {
+                    online: currentOnlineState,
+                    serverAvailable: currentServerState,
+                    forceMode
+                }
+            });
+        }
+    };
+
     return (
         <div>
                 <Cover />
@@ -1247,11 +1404,198 @@ const CarShop = () => {
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         disabled={!isOnline || !serverAvailable}
-                    />
-                    <div className="generatebuttoncontainer">
+                    />                    <div className="generatebuttoncontainer">
                         <button className="generatebutton" onClick={toggleGeneration}>
                             {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
                         </button>
+
+                                <div>
+                                    <div style={{
+                                        padding: '5px',
+                                        border: '1px solid #ddd',
+                                        borderRadius: '4px',
+                                        marginBottom: '10px',
+                                        backgroundColor: '#fff'
+                                    }}>
+                                        <div><strong>Network Status:</strong> {isOnline ? "🟢 ONLINE" : "🔴 OFFLINE"}</div>
+                                        <div><strong>Server Status:</strong> {serverAvailable ? "🟢 AVAILABLE" : "🔴 UNAVAILABLE"}</div>
+                                        <div><strong>Last Check:</strong> {lastServerCheck ? 
+                                            new Date(lastServerCheck).toLocaleTimeString() : 'Never'}</div>
+                                    </div>
+                                    
+                                    <div style={{display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap'}}>
+                                        <button 
+                                            onClick={() => {
+                                                setServerAvailable(true);
+                                                setIsOnline(true);
+                                                console.log("Forced online status: ONLINE, server: AVAILABLE");
+                                                setLastServerCheck(new Date().toISOString());
+                                            }}
+                                            style={{
+                                                padding: '5px 10px',
+                                                backgroundColor: '#4CAF50',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Force Online Mode
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setServerAvailable(false);
+                                                console.log("Forced offline server status");
+                                                setLastServerCheck(new Date().toISOString());
+                                            }}                                            style={{
+                                                padding: '5px 10px',
+                                                backgroundColor: '#F44336',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Force Offline Mode
+                                        </button>
+                                        <button
+                                            onClick={checkServerAvailability}
+                                            style={{
+                                                padding: '5px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Check Server Now
+                                        </button>
+                                    </div>
+                                      <div style={{marginTop: '15px'}}>
+                                        <h4 style={{margin: '0 0 8px 0'}}>Test Delete Operation</h4>
+                                        <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                                            <button
+                                                onClick={() => testDeleteOperation(null, null)}
+                                                style={{
+                                                    padding: '5px 10px',
+                                                    border: '1px solid #2196F3',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    backgroundColor: '#fff',
+                                                    color: '#2196F3'
+                                                }}
+                                            >
+                                                Test Delete (Normal)
+                                            </button>
+                                            <button
+                                                onClick={() => testDeleteOperation(null, 'online')}
+                                                style={{
+                                                    padding: '5px 10px',
+                                                    border: '1px solid #4CAF50',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    backgroundColor: '#fff',
+                                                    color: '#4CAF50'
+                                                }}
+                                            >
+                                                Test Delete (Force Online)
+                                            </button>
+                                        </div>
+                                    </div>
+                                            Force Offline Mode
+                                        </button>
+                                        <button 
+                                            onClick={checkServerAvailability}
+                                            style={{
+                                                padding: '5px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Check Server Now
+                                        </button>
+                                    </div>
+
+                                    {debugPanelExpanded && (
+                                        <div>
+                                            <h4>Delete Operation Tester</h4>
+                                            <div style={{marginBottom: '10px'}}>
+                                                <button 
+                                                    onClick={() => {
+                                                        // Find the first car ID to test with
+                                                        if (cars.length > 0) {
+                                                            const testId = cars[0].id;
+                                                            console.log(`Testing delete operation with ID: ${testId}`);
+                                                            
+                                                            // Call delete and track the result
+                                                            deleteCar(testId)
+                                                                .then(result => {
+                                                                    console.log("Delete result:", result);
+                                                                    setLastDeleteResult({
+                                                                        timestamp: new Date().toISOString(),
+                                                                        id: testId,
+                                                                        success: true,
+                                                                        result
+                                                                    });
+                                                                    // Refresh car list
+                                                                    fetchCars();
+                                                                })
+                                                                .catch(error => {
+                                                                    console.error("Delete failed:", error);
+                                                                    setLastDeleteResult({
+                                                                        timestamp: new Date().toISOString(),
+                                                                        id: testId,
+                                                                        success: false,
+                                                                        error: error.message
+                                                                    });
+                                                                });
+                                                        } else {
+                                                            console.log("No cars available for delete test");
+                                                            setLastDeleteResult({
+                                                                timestamp: new Date().toISOString(),
+                                                                error: "No cars available for testing"
+                                                            });
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        padding: '5px 10px',
+                                                        backgroundColor: '#FF9800',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    disabled={cars.length === 0}
+                                                >
+                                                    Test Delete (First Car)
+                                                </button>
+                                            </div>
+                                            
+                                            {lastDeleteResult && (
+                                                <div style={{
+                                                    padding: '10px',
+                                                    border: '1px solid #ddd',
+                                                    borderRadius: '4px',
+                                                    backgroundColor: lastDeleteResult.success ? '#E8F5E9' : '#FFEBEE'
+                                                }}>
+                                                    <h5 style={{margin: '0 0 5px 0'}}>Last Delete Operation</h5>
+                                                    <div><strong>Time:</strong> {new Date(lastDeleteResult.timestamp).toLocaleTimeString()}</div>
+                                                    <div><strong>Car ID:</strong> {lastDeleteResult.id}</div>
+                                                    <div><strong>Result:</strong> {lastDeleteResult.success ? 'Success' : 'Failed'}</div>
+                                                    {lastDeleteResult.error && (
+                                                        <div><strong>Error:</strong> {lastDeleteResult.error}</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="main-content">
                 {/* Real-time update notification */}
@@ -1284,6 +1628,200 @@ const CarShop = () => {
                     <Charts />
                 </div>
             </div>
+            {process.env.NODE_ENV === 'development' && (
+    <div style={{
+        position: 'fixed',
+        bottom: debugPanelExpanded ? '20px' : '-500px', 
+        right: '20px',
+        width: '550px',
+        backgroundColor: 'rgba(240, 240, 240, 0.95)',
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        padding: '15px',
+        boxShadow: '0 0 10px rgba(0,0,0,0.2)',
+        transition: 'bottom 0.3s ease-in-out',
+        zIndex: 1000,
+        maxHeight: '80vh',
+        overflow: 'auto'
+    }}>
+        <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px'
+        }}>
+            <h3 style={{ margin: 0 }}>Debug Panel</h3>
+            <button 
+                onClick={() => setDebugPanelExpanded(!debugPanelExpanded)}
+                style={{
+                    position: 'absolute',
+                    top: '-40px',
+                    right: '0',
+                    background: '#f0f0f0',
+                    border: '1px solid #ccc',
+                    borderRadius: '8px 8px 0 0',
+                    padding: '8px 15px'
+                }}
+            >
+                {debugPanelExpanded ? 'Hide' : 'Show'} Debug
+            </button>
+        </div>
+        
+        <div style={{ marginBottom: '15px' }}>
+            <h4>Network Status</h4>
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div>
+                    <strong>Browser Status:</strong>{' '}
+                    <span style={{ color: isOnline ? 'green' : 'red' }}>
+                        {isOnline ? '🟢 ONLINE' : '🔴 OFFLINE'}
+                    </span>
+                </div>
+                <div>
+                    <strong>Server Status:</strong>{' '}
+                    <span style={{ color: serverAvailable ? 'green' : 'red' }}>
+                        {serverAvailable ? '🟢 AVAILABLE' : '🔴 UNAVAILABLE'}
+                    </span>
+                </div>
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                Last check: {lastServerCheck ? new Date(lastServerCheck).toLocaleTimeString() : 'Never'}
+            </div>
+        </div>
+        
+        <div style={{ marginBottom: '15px' }}>
+            <h4>Test Delete Operations</h4>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <button 
+                    onClick={() => testDeleteOperation(null, null)}
+                    style={{ padding: '5px 10px' }}
+                >
+                    Test Delete (Normal)
+                </button>
+                <button 
+                    onClick={() => testDeleteOperation(null, 'online')}
+                    style={{ padding: '5px 10px' }}
+                >
+                    Test Delete (Force Online)
+                </button>
+                <button 
+                    onClick={() => testDeleteOperation(null, 'offline')}
+                    style={{ padding: '5px 10px' }}
+                >
+                    Test Delete (Force Offline)
+                </button>
+            </div>
+            
+            <div style={{ marginTop: '10px' }}>
+                <label>
+                    <span style={{ marginRight: '5px' }}>Test with specific ID:</span>
+                    <input 
+                        type="text" 
+                        placeholder="Car ID" 
+                        style={{ width: '80px', marginRight: '10px' }}
+                        id="debugDeleteId"
+                    />
+                </label>
+                <button 
+                    onClick={() => {
+                        const id = document.getElementById('debugDeleteId').value;
+                        if (id) testDeleteOperation(id);
+                    }}
+                    style={{ padding: '5px 10px' }}
+                >
+                    Delete by ID
+                </button>
+            </div>
+            
+            {lastDeleteResult && (
+                <div style={{ 
+                    marginTop: '10px', 
+                    padding: '8px', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '5px',
+                    backgroundColor: lastDeleteResult.success ? '#e6f7e6' : '#ffebeb' 
+                }}>
+                    <h5 style={{ margin: '0 0 5px 0' }}>Last Delete Operation Result:</h5>
+                    <div style={{ fontSize: '13px' }}>
+                        <div><strong>Time:</strong> {new Date(lastDeleteResult.timestamp).toLocaleTimeString()}</div>
+                        <div><strong>Status:</strong> {lastDeleteResult.success ? 'Success' : 'Failed'}</div>
+                        {lastDeleteResult.id && <div><strong>Car ID:</strong> {lastDeleteResult.id}</div>}
+                        {lastDeleteResult.networkState && (
+                            <div>
+                                <strong>Network:</strong> {lastDeleteResult.networkState.online ? 'Online' : 'Offline'}, 
+                                Server: {lastDeleteResult.networkState.serverAvailable ? 'Available' : 'Unavailable'}
+                                {lastDeleteResult.networkState.forceMode && 
+                                    ` (Forced: ${lastDeleteResult.networkState.forceMode})`}
+                            </div>
+                        )}
+                        {lastDeleteResult.serverVerification && (
+                            <div><strong>Verification:</strong> {lastDeleteResult.serverVerification}</div>
+                        )}
+                        {lastDeleteResult.offlineStatus && (
+                            <div>
+                                <strong>Offline Status:</strong> 
+                                {lastDeleteResult.offlineStatus.inQueue ? ' In queue,' : ' Not in queue,'}
+                                {lastDeleteResult.offlineStatus.inRegistry ? ' In registry' : ' Not in registry'}
+                            </div>
+                        )}
+                        {lastDeleteResult.error && <div><strong>Error:</strong> {lastDeleteResult.error}</div>}
+                    </div>
+                </div>
+            )}
+        </div>
+        
+        <div style={{ marginBottom: '15px' }}>
+            <h4>Offline Operations</h4>
+            <div>
+                <button onClick={checkServerAvailability} style={{ marginRight: '10px' }}>
+                    Check Server Now
+                </button>
+                <button onClick={syncOfflineChanges} style={{ marginRight: '10px' }}>
+                    Sync Now
+                </button>
+            </div>
+            
+            <div style={{ marginTop: '10px' }}>
+                <h5 style={{ margin: '0 0 5px 0' }}>Queue Status:</h5>
+                {(() => {
+                    const queue = getOfflineQueue();
+                    if (queue.length === 0) return <div>Queue is empty</div>;
+                    
+                    return (
+                        <>
+                            <div>{queue.length} operations pending</div>
+                            <details>
+                                <summary>View queue details</summary>
+                                <pre style={{ fontSize: '12px', maxHeight: '150px', overflow: 'auto' }}>
+                                    {JSON.stringify(queue, null, 2)}
+                                </pre>
+                            </details>
+                        </>
+                    );
+                })()}
+            </div>
+            
+            <div style={{ marginTop: '10px' }}>
+                <h5 style={{ margin: '0 0 5px 0' }}>Deleted Cars Registry:</h5>
+                {(() => {
+                    const registry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+                    if (registry.length === 0) return <div>Registry is empty</div>;
+                    
+                    return (
+                        <>
+                            <div>{registry.length} cars marked as deleted</div>
+                            <details>
+                                <summary>View registry details</summary>
+                                <pre style={{ fontSize: '12px', maxHeight: '150px', overflow: 'auto' }}>
+                                    {JSON.stringify(registry, null, 2)}
+                                </pre>
+                            </details>
+                        </>
+                    );
+                })()}
+            </div>
+        </div>
+    </div>
+)}
         </div>
     );
 };

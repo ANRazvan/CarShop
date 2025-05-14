@@ -48,22 +48,35 @@ function App() {
     const websocket = useRef(null);
     const [lastWebSocketMessage, setLastWebSocketMessage] = useState(null);
     const [wsConnectionStatus, setWsConnectionStatus] = useState('disconnected');
-    
-    // Check if server is available
+      // Check if server is available
     const checkServerAvailability = useCallback(() => {
+        console.log("App: Checking server availability...");
         axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`)
             .then(() => {
+                console.log("App: Server availability check: SERVER IS AVAILABLE");
+                if (!serverAvailable) {
+                    console.log("App: Server status changed: OFFLINE → ONLINE");
+                    
+                    // If server becomes available and we have pending offline changes, try to sync them
+                    const queue = getOfflineQueue();
+                    if (isOnline && queue && queue.length > 0) {
+                        console.log(`App: Found ${queue.length} operations to sync now that server is available`);
+                    }
+                }
                 setServerAvailable(true);
             })
             .catch((error) => {
-                console.error("Server unavailable:", error);
+                console.error("App: Server unavailable:", error);
+                if (serverAvailable) {
+                    console.log("App: Server status changed: ONLINE → OFFLINE");
+                }
                 setServerAvailable(false);
             });
-    }, []);
-    
-    // Network status event listeners
+    }, [serverAvailable, isOnline]);
+      // Network status event listeners
     useEffect(() => {
         const handleOnline = () => {
+            console.log("App: Browser reported network is now online");
             setIsOnline(true);
             checkServerAvailability();
             
@@ -71,9 +84,8 @@ function App() {
             if (websocket.current?.readyState !== WebSocket.OPEN) {
                 connectWebSocket();
             }
-        };
-
-        const handleOffline = () => {
+        };        const handleOffline = () => {
+            console.log("App: Browser reported network is now offline");
             setIsOnline(false);
             
             // Close WebSocket when going offline
@@ -84,13 +96,20 @@ function App() {
 
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
-
-        // Initial check
+        
+        // Set up periodic server availability checks every 30 seconds
+        const intervalId = setInterval(() => {
+            console.log("App: Performing periodic server availability check");
+            checkServerAvailability();
+        }, 30000);        // Initial check
         checkServerAvailability();
 
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
+            
+            // Clear the interval to prevent memory leaks
+            clearInterval(intervalId);
             
             // Close WebSocket connection on component unmount
             if (websocket.current) {
@@ -99,6 +118,36 @@ function App() {
         };
     }, [checkServerAvailability]);
     
+    // More robust server availability check specifically for CRUD operations
+    const checkWithDebug = useCallback(async () => {
+        console.log("App: Running robust availability check for CRUD operations");
+        try {
+            const response = await axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`, {
+                timeout: 4000 // Shorter timeout for quicker feedback
+            });
+            
+            console.log("App: Server is responsive:", response.status);
+            return true;
+        } catch (error) {
+            console.error("App: Server check failed:", error.message);
+            return false;
+        }
+    }, []);
+
+    // Periodic server status check for operations
+    useEffect(() => {
+        if (isOnline) {
+            checkWithDebug().then(available => {
+                console.log(`App: Debug check result - Server available: ${available}`);
+                setServerAvailable(available);
+            });
+        } else {
+            console.log('App: Not checking server as device is offline');
+        }
+        
+        // Implementation would typically go here - simplified for now
+    }, [isOnline, serverAvailable]);
+
     // WebSocket Connection
     const connectWebSocket = useCallback(() => {
         if (!isOnline || !serverAvailable) return;
@@ -229,11 +278,16 @@ function App() {
         }
         
         return Promise.resolve({ data: { message: 'Car marked for deletion and removed from local view' } });
-    }, []);
-    
-    // Define delete car function that will be available everywhere
+    }, []);      // Define delete car function that will be available everywhere
     const deleteCar = useCallback((id) => {
         console.log(`App: Delete car called with ID: ${id}`);
+        console.log(`App: Current connectivity status: Network ${isOnline ? "ONLINE" : "OFFLINE"}, Server ${serverAvailable ? "AVAILABLE" : "UNAVAILABLE"}`);
+        
+        // Force a server availability check if we're online but the server is marked as unavailable
+        if (isOnline && !serverAvailable) {
+            console.log("App: Network is online but server marked unavailable - checking server status now");
+            checkServerAvailability();
+        }
         
         // Ensure id is consistently a string
         const idStr = String(id);
@@ -255,43 +309,92 @@ function App() {
             console.log(`App: Car with ID ${idStr} is already in deletion queue, skipping server call`);
             return Promise.resolve({ data: { message: 'Car already in deletion queue' } });
         }
-        
-        if (isOnline && serverAvailable) {
-            console.log(`App: Online mode - using server deletion for ID: ${idStr}`);
-            return axios.delete(`${config.API_URL}/api/cars/${idStr}`)
-                .then(response => {
-                    console.log('App: Server delete successful');
-                    
-                    // Update local cache
-                    try {
-                        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-                        cachedData.cars = cachedData.cars.filter(car => String(car.id) !== idStr);
-                        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
-                    } catch (error) {
-                        console.error('App: Error updating cache', error);
+          // If online but server status is uncertain, do an immediate check
+        if (isOnline) {
+            if (!serverAvailable) {
+                console.log(`App: Online but server marked unavailable - performing immediate robust check`);
+                // Try a robust check to see if server is actually available despite the current state
+                return checkWithDebug().then(available => {
+                    if (available) {
+                        console.log(`App: Server is actually available - proceeding with delete for ID: ${idStr}`);
+                        setServerAvailable(true); // Update the state for future operations
+                        return performDirectDelete(idStr);
+                    } else {
+                        console.log(`App: Server confirmed unavailable - using offline deletion`);
+                        return handleOfflineDeletion(idStr);
                     }
-                    
-                    // Add to deletedCarsRegistry
-                    try {
-                        if (!deletedCarsRegistry.includes(idStr)) {
-                            deletedCarsRegistry.push(idStr);
-                            localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
-                        }
-                    } catch (error) {
-                        console.error('App: Error updating deletion registry', error);
-                    }
-                    
-                    return response;
-                })
-                .catch(error => {
-                    console.error('App: Error deleting car from server', error);
-                    return handleOfflineDeletion(idStr);
                 });
+            } else {
+                console.log(`App: Online mode - using direct server deletion for ID: ${idStr}`);
+                return performDirectDelete(idStr);
+            }
         } else {
-            console.log('App: Offline mode - using offline deletion');
+            console.log(`App: Offline mode - using offline deletion for ID: ${idStr}`);
             return handleOfflineDeletion(idStr);
         }
-    }, [isOnline, serverAvailable, handleOfflineDeletion]);
+    }, [isOnline, serverAvailable, handleOfflineDeletion, checkWithDebug]);
+      // Helper function for direct server deletion
+    const performDirectDelete = useCallback((idStr) => {
+        return axios.delete(`${config.API_URL}/api/cars/${idStr}`)
+            .then(response => {
+                console.log('App: Server delete successful');
+                
+                // Update local cache
+                try {
+                    const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+                    cachedData.cars = cachedData.cars.filter(car => String(car.id) !== idStr);
+                    localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+                } catch (error) {
+                    console.error('App: Error updating cache', error);
+                }
+                
+                // Also update deletedCarsRegistry to ensure UI consistency
+                const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+                if (!deletedCarsRegistry.includes(idStr)) {
+                    deletedCarsRegistry.push(idStr);
+                    localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
+                }
+                
+                return response;
+            })
+            .catch(error => {
+                console.error('App: Error deleting car from server', error);
+                // If server communication fails, fall back to offline queue
+                return handleOfflineDeletion(idStr);
+            });
+    }, [handleOfflineDeletion]);
+
+// Helper function for offline car creation
+    const handleOfflineCreation = useCallback((carData) => {
+        // Generate a temporary ID (negative to avoid conflicts with server IDs)
+        const tempId = -Math.floor(Math.random() * 10000);
+        
+        // Create a temporary car object with the temp ID
+        const tempCar = {
+            ...carData,
+            id: tempId,
+            _isTemp: true, // Flag to identify as temporary
+        };
+        
+        // Add to offline queue
+        addToOfflineQueue({
+            type: 'CREATE',
+            data: carData,
+            tempId: tempId,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Update local cache
+        try {
+            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+            cachedData.cars.push(tempCar);
+            localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+        } catch (error) {
+            console.error('App: Error updating cache for offline car', error);
+        }
+        
+        return Promise.resolve({ data: tempCar });
+    }, []);
 
     // Simplified create and update functions for the app level
     const createCar = useCallback((formData, carData) => {
@@ -325,40 +428,9 @@ function App() {
         } else {
             console.log('App: Offline mode - using offline creation');
             return handleOfflineCreation(carData);
-        }
-    }, [isOnline, serverAvailable]);
+        }    }, [isOnline, serverAvailable, handleOfflineCreation]);
 
-    // Helper function for offline car creation
-    const handleOfflineCreation = useCallback((carData) => {
-        // Generate a temporary ID (negative to avoid conflicts with server IDs)
-        const tempId = -Math.floor(Math.random() * 10000);
-        
-        // Create a temporary car object with the temp ID
-        const tempCar = {
-            ...carData,
-            id: tempId,
-            _isTemp: true, // Flag to identify as temporary
-        };
-        
-        // Add to offline queue
-        addToOfflineQueue({
-            type: 'CREATE',
-            data: carData,
-            tempId: tempId,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Update local cache
-        try {
-            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-            cachedData.cars.push(tempCar);
-            localStorage.setItem('cachedCars', JSON.stringify(cachedData));
-        } catch (error) {
-            console.error('App: Error updating cache for offline car', error);
-        }
-        
-        return Promise.resolve({ data: tempCar });
-    }, []);
+    
 
     const updateCar = useCallback((id, formData) => {
         console.log(`App: Update car called with ID: ${id}`);
