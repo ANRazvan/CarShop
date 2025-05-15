@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import './UserMonitor.css';
 import config from './config';
+import axios from 'axios';
 
 const UserMonitor = () => {
   const [monitoredUsers, setMonitoredUsers] = useState([]);
@@ -10,9 +11,9 @@ const UserMonitor = () => {
   const [userLogs, setUserLogs] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [stats, setStats] = useState(null);
+  const [processingIds, setProcessingIds] = useState([]); // Track which user IDs are being processed
   const { isAdmin, getAuthToken } = useAuth();
-  
-  // Fetch monitored users on component mount
+    // Fetch monitored users on component mount
   useEffect(() => {
     fetchMonitoredUsers();
     fetchUserStats();
@@ -22,7 +23,6 @@ const UserMonitor = () => {
   const fetchMonitoredUsers = async () => {
     setLoading(true);
     setError(null);
-    
     try {
       const token = getAuthToken();
       
@@ -30,28 +30,37 @@ const UserMonitor = () => {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`${config.API_URL}/api/monitoring/monitored`, {
+      console.log('Fetching monitored users...');
+      
+      const response = await axios.get(`${config.API_URL}/api/monitoring/monitored`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 10000
       });
       
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to fetch monitored users');
+      console.log(`Fetched ${response.data.length} monitored users`);
+      setMonitoredUsers(response.data);
+    } catch (error) {
+      console.error('Error fetching monitored users:', error);
+      
+      let errorMessage = 'Failed to fetch monitored users';
+      if (error.response) {
+        errorMessage = error.response.data?.message || 
+          `Error ${error.response.status}: ${error.response.statusText}`;
+      } else if (error.request) {
+        errorMessage = 'No response received from server. Check your network connection.';
+      } else {
+        errorMessage = error.message;
       }
       
-      const data = await response.json();
-      setMonitoredUsers(data);
-    } catch (error) {
-      setError(error.message);
-      console.error('Error fetching monitored users:', error);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
-  
-  // Fetch user activity stats
+    // Fetch user activity stats
   const fetchUserStats = async () => {
     try {
       const token = getAuthToken();
@@ -60,20 +69,32 @@ const UserMonitor = () => {
         throw new Error('Authentication required');
       }
       
+      console.log('Fetching user activity stats...');
+      
       const response = await fetch(`${config.API_URL}/api/monitoring/stats`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache' // Add this to match CORS allowedHeaders
         }
       });
       
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to fetch user stats');
+        const errorText = await response.text();
+        let errorMessage;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || 'Failed to fetch user stats';
+        } catch (e) {
+          errorMessage = `Failed to fetch user stats: ${response.status} ${response.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
-      setStats(data);
-    } catch (error) {
+      console.log('User activity stats fetched successfully');
+      setStats(data);    } catch (error) {
       console.error('Error fetching user stats:', error);
     }
   };
@@ -89,52 +110,119 @@ const UserMonitor = () => {
         throw new Error('Authentication required');
       }
       
+      console.log(`Fetching logs for user ID: ${userId}`);
+      
       const response = await fetch(`${config.API_URL}/api/monitoring/logs/${userId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache' // Add this to match CORS allowedHeaders
         }
       });
       
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to fetch user logs');
+        const errorText = await response.text();
+        let errorMessage;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || 'Failed to fetch user logs';
+        } catch (e) {
+          errorMessage = `Failed to fetch user logs: ${response.status} ${response.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
+      console.log(`Fetched ${data.length} logs for user ID: ${userId}`);
       setUserLogs(data);
     } catch (error) {
-      console.error('Error fetching user logs:', error);
-    }
+      console.error('Error fetching user logs:', error);    }
   };
   
   // Update monitored user status
   const updateUserStatus = async (id, status) => {
     try {
+      // Add this ID to the processing list
+      setProcessingIds(prev => [...prev, id]);
+      
       const token = getAuthToken();
       
       if (!token) {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`${config.API_URL}/api/monitoring/monitored/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
+      console.log(`Updating user ${id} status to ${status}`);
       
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to update status');
+      // Create a test request first to see if the server is responding
+      try {
+        const testResponse = await fetch(`${config.API_URL}/api/cars?page=1&limit=1`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log(`Server test ping response status: ${testResponse.status}`);
+      } catch (e) {
+        console.error('Error in test request:', e);
       }
       
-      // Refresh monitored users list
-      fetchMonitoredUsers();
+      // Actual request using XMLHttpRequest for better debugging
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PATCH', `${config.API_URL}/api/monitoring/monitored/${id}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.timeout = 15000; // 15 second timeout
+        
+        xhr.onload = function() {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            console.log(`Success: ${xhr.responseText}`);
+            // Refresh monitored users list
+            fetchMonitoredUsers();
+            // Show success message
+            alert(`User status successfully updated to "${status}"`);
+            resolve(xhr.responseText);
+          } else {
+            console.error(`Error ${xhr.status}: ${xhr.responseText}`);
+            setError(`Server returned error: ${xhr.status}`);
+            alert(`Error ${xhr.status}: ${xhr.responseText || 'Unknown error'}`);
+            reject(new Error(`Server returned ${xhr.status}`));
+          }
+        };
+        
+        xhr.onerror = function() {
+          console.error("Network Error");
+          setError("Network Error - Could not connect to server");
+          alert("Network Error - Could not connect to server");
+          reject(new Error("Network Error"));
+        };
+        
+        xhr.ontimeout = function() {
+          console.error("Request timed out");
+          setError("Request timed out - Server took too long to respond");
+          alert("Request timed out - Server took too long to respond");
+          reject(new Error("Timeout"));
+        };
+        
+        const data = JSON.stringify({ status });
+        console.log(`Sending data: ${data}`);
+        xhr.send(data);
+      }).catch(error => {
+        console.error('Error in XMLHttpRequest:', error);
+      }).finally(() => {
+        // Remove this ID from the processing list whether successful or not
+        setProcessingIds(prev => prev.filter(processId => processId !== id));
+      });
     } catch (error) {
-      setError(error.message);
       console.error('Error updating user status:', error);
+      
+      // Format error message
+      let errorMessage = 'Failed to update status: ' + error.message;
+      setError(errorMessage);
+      alert(`Error: ${errorMessage}`);
+      
+      // Remove this ID from the processing list
+      setProcessingIds(prev => prev.filter(processId => processId !== id));
     }
   };
   
@@ -182,25 +270,32 @@ const UserMonitor = () => {
                   <div className="user-item-details">
                     <span>Actions: {item.actionsCount}</span>
                     <span>Detected: {formatTimestamp(item.firstDetected)}</span>
-                  </div>
-                  <div className="user-actions">
+                  </div>                  <div className="user-actions">
                     <button 
                       className="resolve-button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateUserStatus(item.id, 'resolved');
+                        if(confirm(`Mark user "${item.user.username}" as resolved?`)) {
+                          updateUserStatus(item.id, 'resolved');
+                        }
                       }}
+                      disabled={processingIds.includes(item.id)}
+                      title="Mark this case as resolved (legitimate but addressed)"
                     >
-                      Mark Resolved
+                      {processingIds.includes(item.id) ? 'Processing...' : 'Mark Resolved'}
                     </button>
                     <button 
                       className="false-positive-button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateUserStatus(item.id, 'false_positive');
+                        if(confirm(`Mark user "${item.user.username}" as false positive?`)) {
+                          updateUserStatus(item.id, 'false_positive');
+                        }
                       }}
+                      disabled={processingIds.includes(item.id)}
+                      title="Mark this case as a false positive (not actually suspicious)"
                     >
-                      False Positive
+                      {processingIds.includes(item.id) ? 'Processing...' : 'False Positive'}
                     </button>
                   </div>
                 </div>

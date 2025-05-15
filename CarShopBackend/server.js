@@ -34,11 +34,11 @@ app.use(express.urlencoded({ extended: true, limit: '2048mb' }));
 // Configure CORS with explicit options
 // CORS Configuration
 app.use(cors({
-  origin: 'http://localhost:5173', // Your frontend origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Your frontend origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
-    'Authorization', 
+    'Authorization',
     'cache-control',
     'Cache-Control', 
     'pragma',

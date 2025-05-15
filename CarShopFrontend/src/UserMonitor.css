@@ -326,3 +326,15 @@
 .false-positive-button:hover {
   background-color: #5a6268;
 }
+
+.resolve-button:disabled,
+.false-positive-button:disabled {
+  background-color: #cccccc;
+  color: #888888;
+  cursor: not-allowed;
+}
+
+.resolve-button:disabled:hover,
+.false-positive-button:disabled:hover {
+  background-color: #cccccc;
+}
