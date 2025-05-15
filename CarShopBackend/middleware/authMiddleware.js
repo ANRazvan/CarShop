@@ -6,18 +6,28 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 // Authentication middleware
 exports.auth = exports.authenticate = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    console.log('Auth middleware: checking authorization header');
+    console.log('Headers received:', JSON.stringify(req.headers, null, 2));
     
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      console.log('Auth middleware: No authorization header found');
+      return res.status(401).json({ message: 'Authentication required - No auth header' });
+    }
+    
+    const token = authHeader.split(' ')[1];
     if (!token) {
-      return res.status(401).json({ message: 'Authentication required' });
+      console.log('Auth middleware: No token in authorization header');
+      return res.status(401).json({ message: 'Authentication required - Invalid header format' });
     }
     
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    console.log(`Auth middleware: Authenticated user ${decoded.id} (${decoded.email})`);
     next();
   } catch (error) {
     console.error('Authentication error:', error);
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(401).json({ message: `Invalid or expired token: ${error.message}` });
   }
 };
 

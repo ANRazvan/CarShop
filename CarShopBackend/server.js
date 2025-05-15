@@ -15,6 +15,7 @@ const Car = require('./models/Car');
 const Brand = require('./models/Brand');
 const setupAssociations = require('./models/associations');
 const userMonitor = require('./services/userMonitor');
+const corsDebug = require('./middleware/corsDebug'); // Import CORS debug middleware
 require('dotenv').config();
 
 // Initialize model associations
@@ -31,11 +32,27 @@ app.use(express.json({ limit: '2048mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2048mb' }));
 
 // Configure CORS with explicit options
+// CORS Configuration
 app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+  origin: 'http://localhost:5173', // Your frontend origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'cache-control',
+    'Cache-Control', 
+    'pragma',
+    'Pragma',
+    'if-modified-since',
+    'If-Modified-Since',
+    'X-Requested-With'
+  ],  credentials: true,
+  exposedHeaders: ['Content-Length', 'Date', 'X-Request-Id'] 
 }));
+
+// Apply CORS debug middleware for troubleshooting
+app.use(corsDebug);
+
 
 // Setup WebSocket server with explicit path
 const wss = new WebSocketServer({ 

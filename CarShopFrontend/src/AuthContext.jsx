@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import config from './config';
+import { setAuthToken } from './utils/authToken';
 
 export const AuthContext = createContext();
 
@@ -7,19 +8,21 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
-  
-  // Check for saved token on component mount
+    // Check for saved token on component mount
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('user');
     
     if (savedToken && savedUser) {
       try {
+        // Set the token for axios headers
+        setAuthToken(savedToken);
         setCurrentUser(JSON.parse(savedUser));
       } catch (error) {
         console.error('Error parsing saved user:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('authToken');
+        setAuthToken(null);
       }
     }
     
@@ -86,10 +89,12 @@ export const AuthProvider = ({ children }) => {
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
-      
-      // Save token and user in local storage
+        // Save token and user in local storage
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Update axios headers with the new token
+      setAuthToken(data.token);
       
       setCurrentUser(data.user);
       setLoading(false);
@@ -100,11 +105,12 @@ export const AuthProvider = ({ children }) => {
       throw error;
     }
   };
-  
-  // Log out a user
+    // Log out a user
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    // Clear auth header
+    setAuthToken(null);
     setCurrentUser(null);
   };
   

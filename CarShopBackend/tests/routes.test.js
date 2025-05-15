@@ -6,7 +6,19 @@ const { carsData } = require('../controllers/carController');
 
 // Create a test app
 const app = express();
-app.use(cors());
+// CORS Configuration
+app.use(cors({
+  origin: 'http://localhost:5173', // Your frontend origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'cache-control', // Add this header
+    'X-Requested-With'
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use('/api/cars', carRoutes);
 

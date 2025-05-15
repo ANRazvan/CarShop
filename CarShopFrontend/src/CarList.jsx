@@ -147,24 +147,30 @@ const CarListComponent = ({
         if (page >= 1 && page <= totalPages) {
             setCurrentPage(page);
         }
-    };
-
-    const handleDelete = (carId) => {
+    };    const handleDelete = (carId) => {
         if (window.confirm("Are you sure you want to delete this car?")) {
-            deleteCar(carId)
+            // First try a forced immediate deletion
+            console.log("CarList: Attempting immediate delete for car ID:", carId);
+            
+            // Add a loading indicator or disable buttons here if needed
+            
+            deleteCar(carId, true) // true forces immediate deletion attempt
                 .then((response) => {
-                    // Check if we're offline by looking at the response message
                     if (response?.data?.message?.includes('offline') || 
                         response?.data?.message?.includes('marked for deletion')) {
+                        console.log("CarList: Car queued for deletion:", response?.data?.message);
                         alert("Car has been removed from local view and will be deleted from the server when you're back online.");
                     } else {
                         // Normal online deletion
-                        console.log("Car deleted successfully on server");
+                        console.log("CarList: Car deleted successfully on server");
                     }
                 })
                 .catch(error => {
-                    console.error("Error deleting car:", error);
-                    alert("Failed to delete car");
+                    console.error("CarList: Error deleting car:", error);
+                    alert("Failed to delete car: " + (error.message || "Unknown error"));
+                })
+                .finally(() => {
+                    // Remove loading indicator or re-enable buttons if needed
                 });
         }
     };

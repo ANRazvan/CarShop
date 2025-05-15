@@ -489,14 +489,9 @@ const CarShop = () => {
                     case 'UPDATE':
                         // UPDATE logic would go here
                         break;
-                          case 'DELETE':
+                        
+                    case 'DELETE':
                         try {
-                            // Use the global authToken utility
-                            const token = localStorage.getItem('authToken');
-                            if (token) {
-                                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                            }
-                            
                             await axios.delete(`${config.API_URL}/api/cars/${operation.id}`);
                             console.log(`CarShop: Successfully deleted car with ID: ${operation.id}`);
                             successCount++;

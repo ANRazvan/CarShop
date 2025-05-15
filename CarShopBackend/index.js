@@ -10,7 +10,17 @@ const app = express();
 const PORT = process.env.PORT || 5000; // Changed from 3000 to 5000 to match frontend config
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization',
+    'Cache-Control',
+    'Pragma',
+    'If-Modified-Since'
+  ]
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
