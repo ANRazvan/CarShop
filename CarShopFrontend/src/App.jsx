@@ -21,8 +21,11 @@ import Login from './Login.jsx';
 import UserMonitor from './UserMonitor.jsx';
 import { AuthProvider } from './AuthContext.jsx';
 import AuthDebug from './AuthDebug.jsx';
+import SessionHandler from './SessionHandler.jsx';
+// Import database performance component
+import IndexPerformance from './IndexPerformance.jsx';
 import config from "./config.js";
-import { getAuthToken } from './utils/authToken';
+import { getAuthToken, setAuthToken, initializeAuth } from './utils/authToken';
 
 // Queue for storing offline operations
 const getOfflineQueue = () => {
@@ -52,7 +55,14 @@ function App() {
     const [wsConnectionStatus, setWsConnectionStatus] = useState('disconnected');    const [isAuthenticated, setIsAuthenticated] = useState(false);
     // Use the auth token utility instead of local variable
     useEffect(() => {
+        // Initialize auth token and set it in axios headers
         const authToken = getAuthToken();
+        if (authToken) {
+            console.log("App: Initializing authentication with existing token");
+            setAuthToken(authToken);
+        } else {
+            console.log("App: No authentication token found on app start");
+        }
         setIsAuthenticated(!!authToken);
     }, []);
 
@@ -427,10 +437,7 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
     }
 }, [isOnline, serverAvailable, handleOfflineDeletion, checkWithDebug, performDirectDelete]);
 
-// Helper function for direct server deletion
-
-
-    // Helper function for offline car creation
+// Helper function for offline car creation
     const handleOfflineCreation = useCallback((carData) => {
         // Generate a temporary ID (negative to avoid conflicts with server IDs)
         const tempId = -Math.floor(Math.random() * 10000);
@@ -466,11 +473,19 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
     const createCar = useCallback((formData, carData) => {
         console.log('App: Create car called');
         
+        // Get the current auth token for this request
+        const token = getAuthToken();
+        if (!token) {
+            console.error("App: No auth token available for car creation");
+            return Promise.reject(new Error("Authentication required"));
+        }
+        
         if (isOnline && serverAvailable) {
-            console.log('App: Online mode - using server creation');            return axios.post(`${config.API_URL}/api/cars`, formData, {
+            console.log('App: Online mode - using server creation');
+            return axios.post(`${config.API_URL}/api/cars`, formData, {
                 headers: {
-                    "Content-Type": "multipart/form-data"
-                    // Authorization header is set globally by axios defaults
+                    "Content-Type": "multipart/form-data",
+                    "Authorization": `Bearer ${token}`  // Explicitly set Authorization header
                 }
             })
             .then(response => {
@@ -496,12 +511,25 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
         }    }, [isOnline, serverAvailable, handleOfflineCreation]);
 
     const updateCar = useCallback((id, formData) => {
-        console.log(`App: Update car called with ID: ${id}`);        if (isOnline && serverAvailable) {
+        console.log(`App: Update car called with ID: ${id}`);        // Get the current auth token for this request
+        const token = getAuthToken();
+        if (!token) {
+            console.error("App: No auth token available for car update");
+            // Redirect to login page after a short delay
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 100);
+            return Promise.reject(new Error("Authentication required. Please log in again."));
+        }
+        
+        if (isOnline && serverAvailable) {
             console.log('App: Online mode - using server update');
+            console.log('App: Using token:', token.substring(0, 10) + '...');
+            
             return axios.put(`${config.API_URL}/api/cars/${id}`, formData, {
                 headers: {
-                    "Content-Type": "multipart/form-data"
-                    // Authorization header is set globally by axios defaults
+                    "Content-Type": "multipart/form-data",
+                    "Authorization": `Bearer ${token}`  // Explicitly set Authorization header
                 }
             })
             .then(response => {
@@ -526,23 +554,39 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
             console.log('App: Offline mode - using offline update');
             return handleOfflineUpdate(id, formData);
         }
-    }, [isOnline, serverAvailable]);
-
-    const handleOfflineUpdate = useCallback((id, formData) => {
+    }, [isOnline, serverAvailable]);    const handleOfflineUpdate = useCallback((id, formData) => {
         // Convert FormData to a plain object for offline storage
         const updatedData = {};
         if(formData instanceof FormData) {
-        formData.forEach((value, key) => {
-            updatedData[key] = value;
-        });
+            // Special handling for the image file in FormData
+            formData.forEach((value, key) => {
+                if (key === 'image' && value instanceof File) {
+                    // For file objects, convert to base64 for offline storage
+                    console.log("Handling offline image storage for file:", value.name);
+                    
+                    // In a real solution, we'd read the file and convert it to base64
+                    // For now, set a flag to indicate an image was uploaded
+                    updatedData.hasOfflineImageUpdate = true;
+                    updatedData.offlineImageName = value.name;
+                    
+                    // This is a placeholder - in a production app, we would 
+                    // convert the image to base64 with a FileReader
+                } else if (key === 'keepExistingImage') {
+                    // Special handling for the keep existing image flag
+                    updatedData.keepExistingImage = value === 'true';
+                    console.log("Setting keepExistingImage flag:", updatedData.keepExistingImage);
+                } else {
+                    updatedData[key] = value;
+                }
+            });
         } else if (typeof formData === 'object') {
-        Object.keys(formData).forEach(key => {
-            updatedData[key] = formData[key];
-        });
+            Object.keys(formData).forEach(key => {
+                updatedData[key] = formData[key];
+            });
         } else {
             console.error('Invalid formData format:', formData);
-        return Promise.reject(new Error('Invalid formData format'));
-    }
+            return Promise.reject(new Error('Invalid formData format'));
+        }
         // Update local cache
         const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
         cachedData.cars = cachedData.cars.map(car => car.id === id ? { ...car, ...updatedData, _isTemp: true } : car);
@@ -631,9 +675,9 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
     });    return (
         <AuthProvider>
             <CarOperationsContext.Provider value={carOperations}>
-                <BrandOperationsProvider>
-                    <Router>
+                <BrandOperationsProvider>                    <Router>
                         <Navbar wsStatus={wsConnectionStatus} />
+                        {/* SessionHandler removed to prevent constant session expiration warnings */}
                         <Routes>
                             <Route path="/" element={<CarShop />} />
                             <Route path="/cars/:id" element={<CarDetail />} />
@@ -647,9 +691,9 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
                             <Route path="/brands/:id" element={<BrandDetail />} />
                             <Route path="/add-brand" element={<AddBrand />} />
                             <Route path="/brands/:id/edit" element={<UpdateBrand />} />
-                            
-                            {/* Statistics route */}
+                              {/* Statistics route */}
                             <Route path="/statistics" element={<StatisticsPage />} />
+                            <Route path="/db-performance" element={<IndexPerformance />} />
                             
                             {/* Authentication and User Monitoring routes */}
                             <Route path="/login" element={<Login />} />

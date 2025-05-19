@@ -6,24 +6,49 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 // Authentication middleware
 exports.auth = exports.authenticate = (req, res, next) => {
   try {
-    console.log('Auth middleware: checking authorization header');
-    console.log('Headers received:', JSON.stringify(req.headers, null, 2));
+    // Get the request details for better logging
+    const requestMethod = req.method;
+    const requestPath = req.originalUrl;
+    const contentType = req.headers['content-type'] || 'not specified';
+    
+    console.log(`Auth middleware: Processing ${requestMethod} request to ${requestPath}`);
+    console.log(`Auth middleware: Content-Type: ${contentType}`);
+    
+    // Special handling for multipart/form-data requests
+    if (contentType.includes('multipart/form-data')) {
+      console.log('Auth middleware: Handling multipart/form-data request');
+      console.log('Auth middleware: Available headers:', Object.keys(req.headers).join(', '));
+    }
     
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      console.log('Auth middleware: No authorization header found');
+      console.log(`Auth middleware: No authorization header found for ${requestPath}`);
       return res.status(401).json({ message: 'Authentication required - No auth header' });
     }
     
     const token = authHeader.split(' ')[1];
     if (!token) {
-      console.log('Auth middleware: No token in authorization header');
+      console.log(`Auth middleware: No token in authorization header for ${requestPath}`);
       return res.status(401).json({ message: 'Authentication required - Invalid header format' });
     }
     
+    console.log(`Auth middleware: Verifying token: ${token.substring(0, 10)}... for ${requestPath}`);
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
-    console.log(`Auth middleware: Authenticated user ${decoded.id} (${decoded.email})`);
+    
+    // Add request timestamp for monitoring
+    req.authTimestamp = Date.now();
+    
+    console.log(`Auth middleware: User ${decoded.id} (${decoded.username || decoded.email}) authenticated for ${requestPath}`);
+    
+    // Log the authentication
+    UserLog.create({
+      userId: decoded.id,
+      action: 'AUTHENTICATED',
+      details: `${requestMethod} ${requestPath}`,
+      ip: req.ip
+    }).catch(err => console.error('Failed to log authentication:', err));
+    
     next();
   } catch (error) {
     console.error('Authentication error:', error);

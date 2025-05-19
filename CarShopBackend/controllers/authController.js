@@ -162,4 +162,97 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+// Verify JWT token
+exports.verifyToken = async (req, res) => {
+  try {
+    // If the auth middleware passed, the token is valid
+    // and req.user is already populated
+    if (!req.user) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    // Return the user details without sensitive info
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Log the token verification
+    await UserLog.create({
+      userId: req.user.id,
+      action: 'TOKEN_VERIFY',
+      details: 'Token verification successful',
+      ip: req.ip
+    });
+
+    return res.status(200).json({
+      message: 'Token is valid',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(500).json({ 
+      message: 'Error verifying token',
+      error: error.message 
+    });
+  }
+};
+
+// Refresh token
+exports.refreshToken = async (req, res) => {
+  try {
+    // Token is already validated by auth middleware
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Find user in database
+    const user = await User.findByPk(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Generate a new token
+    const token = jwt.sign(
+      { id: user.id, username: user.username, email: user.email, role: user.role }, 
+      JWT_SECRET, 
+      { expiresIn: '1h' }
+    );
+    
+    // Log the token refresh
+    await UserLog.create({
+      userId: user.id,
+      action: 'TOKEN_REFRESH',
+      details: 'Refreshed authentication token',
+      ip: req.ip
+    });
+    
+    return res.status(200).json({
+      message: 'Token refreshed',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    return res.status(500).json({ 
+      message: 'Error refreshing token',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = exports;

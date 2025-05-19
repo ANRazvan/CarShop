@@ -6,6 +6,7 @@ const fs = require('fs');
 const { validateCarData } = require('../controllers/carController');
 const Car = require('../models/Car'); // Import the Car model
 const { authenticate, authorizeAdmin } = require('../middleware/authMiddleware');
+const { handleMulterError } = require('../middleware/errorHandlers');
 
 // Setup multer for file uploads
 const storage = multer.diskStorage({
@@ -162,7 +163,35 @@ router.post('/generate/:count', authenticate, authorizeAdmin, (req, res) => {
 router.post('/', authenticate, logAction('CREATE', 'CAR'), upload.single('image'), createCar);
 
 // PUT update an existing car - use the database controller (requires authentication)
-router.put('/:id', authenticate, logAction('UPDATE', 'CAR'), upload.single('image'), updateCar);
+router.put('/:id', authenticate, logAction('UPDATE', 'CAR'), 
+    // Add debug middleware for image uploads
+    (req, res, next) => {
+        console.log(`[DEBUG] Car update request for ID ${req.params.id}`);
+        console.log(`[DEBUG] Request has ${req.headers['content-type']}`);
+        console.log(`[DEBUG] Form field keys: ${Object.keys(req.body || {}).join(', ')}`);
+        next();
+    },
+    // Use multer for file upload with error handling
+    (req, res, next) => {
+        upload.single('image')(req, res, (err) => {
+            if (err) {
+                // Forward to our multer error handler
+                return handleMulterError(err, req, res, next);
+            }
+            next();
+        });
+    },
+    // Add post-upload middleware
+    (req, res, next) => {
+        console.log(`[DEBUG] After multer processing:`);
+        console.log(`[DEBUG] File uploaded: ${req.file ? 'Yes' : 'No'}`);
+        if (req.file) {
+            console.log(`[DEBUG] File details: ${req.file.originalname}, ${req.file.size} bytes, ${req.file.mimetype}`);
+        }
+        console.log(`[DEBUG] Keep existing image flag: ${req.body.keepExistingImage || 'not set'}`);
+        next();
+    },
+    updateCar);
 
 // DELETE car by ID - use the database controller (requires authentication)
 router.delete('/:id', authenticate, logAction('DELETE', 'CAR'), deleteCar);

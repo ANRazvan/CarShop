@@ -1,0 +1,9 @@
+Label,# Samples,Average,Min,Max,Std. Dev.,Error %,Throughput,Received KB/sec,Sent KB/sec,Avg. Bytes
+Re-Enable Indices,3,48,5,133,59.87,100.000%,.00322,0.00,0.00,1387.0
+Disable Indices,3,54,5,133,56.40,100.000%,.00322,0.00,0.00,1388.0
+Enable Indices,3,51,10,132,57.28,100.000%,.00322,0.00,0.00,1387.0
+Statistics API - With Indices,653,14644,693,22037,5055.04,0.000%,.64740,1.81,0.18,2859.7
+Statistics API - Without Indices,650,14702,657,21891,5027.77,0.000%,.64445,1.79,0.18,2845.8
+Get Indices Status API,3,1166,410,2157,732.10,100.000%,.00322,0.00,0.00,498.0
+Toggle Indices API - Enable,3,10,6,16,4.32,100.000%,.00323,0.00,0.00,1387.0
+TOTAL,1318,14509,5,22037,5240.89,1.138%,1.30670,3.62,0.37,2834.0

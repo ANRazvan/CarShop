@@ -4,6 +4,7 @@ import axios from "axios";
 import "./AddCar.css";
 import config from "./config.js";
 import CarOperationsContext from './CarOperationsContext.jsx';
+import { getDisplayUrl, revokeObjectUrl } from './utils/imageHelpers.js';
 
 const UpdateCar = () => {
     const { id } = useParams(); // Get the car ID from the URL
@@ -60,6 +61,13 @@ const UpdateCar = () => {
         };
 
         fetchCarDetails();
+        
+        // Cleanup function to revoke any object URLs
+        return () => {
+            if (car && car.img instanceof File) {
+                revokeObjectUrl(URL.createObjectURL(car.img));
+            }
+        };
     }, [id]);
 
     const validateForm = () => {
@@ -112,8 +120,8 @@ const UpdateCar = () => {
         setCar((prevCar) => ({ ...prevCar, img: null }));
         setIsImageModified(true);
         setErrors({ ...errors, img: "Image is required." });
-    };
-
+    };  
+    
     const handleSubmit = () => {
         if (!validateForm()) {
             return; // Don't proceed if validation fails
@@ -129,12 +137,33 @@ const UpdateCar = () => {
         formData.append("description", car.description);
         formData.append("fuelType", car.fuelType);
         formData.append("price", car.price);
-
-        // Handle image - only append if it's a file object (new upload)
-        if (isImageModified && car.img instanceof File) {
-            formData.append("image", car.img);
+        
+        // Include original brandId if it exists
+        if (car.brandId) {
+            formData.append("brandId", car.brandId);
         }
 
+        // Handle image upload
+        if (isImageModified && car.img instanceof File) {
+            // If a new image is selected
+            formData.append("image", car.img);
+            console.log("Uploading new image:", car.img.name);
+        } else if (car.img && !isImageModified) {
+            // If using existing image, send the image ID/path
+            // The backend will know to keep the existing image
+            formData.append("keepExistingImage", "true");
+            console.log("Keeping existing image");
+        }
+
+        console.log("Submitting car update with form data:", {
+            id: car.id,
+            make: car.make,
+            model: car.model,
+            hasImage: !!car.img,
+            isNewImage: isImageModified && car.img instanceof File,
+            formDataKeys: Array.from(formData.keys())
+        });
+        
         if (updateCar) {
             updateCar(car.id, formData)
                 .then((response) => {
@@ -142,9 +171,34 @@ const UpdateCar = () => {
                     alert("Car updated successfully!");
                     navigate('/'); // Redirect to the home page
                 })
-                .catch((error) => {
-                    console.error("Error updating car:", error);
-                    setErrors(prev => ({ ...prev, submit: "Failed to update car. Please try again." }));
+                .catch((updateError) => {
+                    console.error("Error updating car:", updateError);
+                    
+                    // Handle specific error types
+                    if (updateError.response) {
+                        // The request was made and the server responded with an error status
+                        if (updateError.response.status === 401) {
+                            setErrors(prev => ({ 
+                                ...prev, 
+                                submit: "Authentication error: You need to log in again." 
+                            }));
+                            alert("Your session has expired. Please log in again.");
+                            navigate('/login'); // Redirect to login page
+                            return;
+                        } else if (updateError.response.status === 403) {
+                            setErrors(prev => ({ 
+                                ...prev, 
+                                submit: "Permission denied: You don't have permission to update this car." 
+                            }));
+                            return;
+                        }
+                    }
+                    
+                    // Generic error handling
+                    setErrors(prev => ({ 
+                        ...prev, 
+                        submit: "Failed to update car. Please try again." 
+                    }));
                 });
         } else {
             console.error("Update car function not available in context");
@@ -219,15 +273,14 @@ const UpdateCar = () => {
 
             <div className="image-preview">
                 {car.img ? (
-                    <>
-                        <img 
-                            src={car.img instanceof File ? URL.createObjectURL(car.img) : 
-                                (car.img.startsWith('data:') 
-                                    ? car.img 
-                                    : car.img.startsWith('http') 
-                                        ? car.img 
-                                        : `${config.UPLOADS_PATH}${car.img}`)} 
-                            alt="Car" 
+                    <>                <img 
+                            src={getDisplayUrl(car.img, 'https://www.shutterstock.com/shutterstock/photos/473088025/display_1500/stock-vector-car-logo-icon-emblem-design-vector-illustration-473088025.jpg')}
+                            alt={`${car.make} ${car.model}`} 
+                            onError={(e) => {
+                                console.log("Image failed to load:", e.target.src);
+                                e.target.onerror = null;
+                                e.target.src = 'https://www.shutterstock.com/shutterstock/photos/473088025/display_1500/stock-vector-car-logo-icon-emblem-design-vector-illustration-473088025.jpg';
+                            }}
                         />
                         <button className="remove-image" onClick={removeImage}>Remove Image</button>
                     </>

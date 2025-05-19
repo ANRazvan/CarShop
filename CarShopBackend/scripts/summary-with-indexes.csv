@@ -1,0 +1,3 @@
+Label,# Samples,Average,Min,Max,Std. Dev.,Error %,Throughput,Received KB/sec,Sent KB/sec,Avg. Bytes
+Statistics API,367,17947,967,30018,8301.39,24.796%,1.32221,3.64,0.28,2820.3
+TOTAL,742,17764,3,30018,8436.22,25.741%,2.66808,7.30,0.57,2802.5

@@ -39,7 +39,8 @@ exports.getCarStatistics = async (req, res) => {
       fuelTypes,
       brandIds,
       keywords,
-      useCache = 'true' // Default to using cache unless explicitly disabled
+      useCache = 'true', // Default to using cache unless explicitly disabled
+      useIndices = 'true' // Default to using indices unless explicitly disabled
     } = req.query;
     
     // Generate cache key based on query parameters
@@ -48,8 +49,7 @@ exports.getCarStatistics = async (req, res) => {
     }:${
       Array.isArray(brandIds) ? brandIds.join(',') : brandIds || ''
     }:${keywords || ''}`;
-    
-    // Try to get data from cache first if cache is enabled
+      // Try to get data from cache first if cache is enabled
     if (redisClient && useCache === 'true') {
       try {
         const cachedData = await getAsync(cacheKey);
@@ -57,7 +57,7 @@ exports.getCarStatistics = async (req, res) => {
           console.log('Cache hit for statistics query');
           const parsedData = JSON.parse(cachedData);
           console.timeEnd('statistics-query');
-          return res.json(parsedData);
+          return res.json({...parsedData, fromCache: true});
         }
         console.log('Cache miss for statistics query');
       } catch (cacheError) {
@@ -65,7 +65,17 @@ exports.getCarStatistics = async (req, res) => {
         // Continue with database query if cache fails
       }
     }
-    
+      // Use database indices according to the parameter
+    if (useIndices === 'false') {
+      console.log('Disabling indices for this query');
+      await sequelize.query('SET enable_indexscan = off;');
+      await sequelize.query('SET enable_bitmapscan = off;');
+    } else {
+      console.log('Using indices for this query');
+      await sequelize.query('SET enable_indexscan = on;');
+      await sequelize.query('SET enable_bitmapscan = on;');
+    }
+      
     // Build where clause dynamically
     const whereClause = {
       year: {
@@ -122,7 +132,7 @@ exports.getCarStatistics = async (req, res) => {
       // Total count - simple query, no optimization needed
       Car.count({ where: whereClause }),
       
-      // Average price - use raw query for better performance
+      // Average price
       sequelize.query(`
         SELECT AVG("price") as "averagePrice",
                MIN("price") as "minPrice",
@@ -300,11 +310,25 @@ exports.getCarStatistics = async (req, res) => {
         console.error('Cache set error:', cacheError);
       }
     }
+      // Restore default index settings
+    if (useIndices === 'false') {
+      await sequelize.query('SET enable_indexscan = on;');
+      await sequelize.query('SET enable_bitmapscan = on;');
+    }
     
     // Return aggregated statistics with execution time
     res.json(responseData);
   } catch (error) {
     console.error('Error in statistics controller:', error);
+    
+    // Ensure we restore default index settings even if there was an error
+    try {
+      await sequelize.query('SET enable_indexscan = on;');
+      await sequelize.query('SET enable_bitmapscan = on;');
+    } catch (settingsError) {
+      console.error('Error restoring index settings:', settingsError);
+    }
+    
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };

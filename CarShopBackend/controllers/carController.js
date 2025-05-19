@@ -492,22 +492,34 @@ const createCar = async (req, res) => {
 // Update car
 const updateCar = async (req, res) => {
   try {
+    // Check if user is authenticated
+    if (!req.user) {
+      console.log('Car update attempted without authentication');
+      return res.status(401).json({ error: 'Authentication required', details: 'No user found in request' });
+    }
+    
+    // Log the user attempting the update
+    console.log(`Car update requested by user ID ${req.user.id}, username: ${req.user.username || 'unknown'}`);
+    
     const carId = parseInt(req.params.id);
+    
+    // Find the car to update
     const car = await Car.findByPk(carId);
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
     }
     
-    // Check if user owns this car or is an admin
-    if (req.user && car.userId && car.userId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'You do not have permission to update this car' });
-    }
+    // Extract update data from request body
+    const updatedData = { ...req.body };
     
-    // Update car data
-    const updatedData = {
-      ...req.body
-    };
+    console.log(`Updating car ID ${carId}, requested by user ${req.user ? req.user.username : 'unknown'}`);
+    console.log(`Car before update:`, {
+      make: car.make,
+      model: car.model,
+      hasImage: !!car.img,
+      imageLength: car.img ? car.img.length : 0
+    });
     
     // Convert brandId to number if it's a string
     if (updatedData.brandId && typeof updatedData.brandId === 'string') {
@@ -523,18 +535,63 @@ const updateCar = async (req, res) => {
       // Set the make field to match the brand name for consistency
       updatedData.make = brand.name;
     }
-    
-    // If there's a new image, update the img property
+      // If there's a new image, update the img property
     if (req.file) {
-      // Read the file into a Buffer
-      const imageBuffer = fs.readFileSync(req.file.path);
+      try {
+        console.log(`Processing new image upload for car ID ${carId}: ${req.file.originalname} (${req.file.size} bytes, ${req.file.mimetype})`);
+        
+        // Check if the file exists
+        if (!fs.existsSync(req.file.path)) {
+          console.error(`Image file not found at path: ${req.file.path}`);
+          return res.status(500).json({ error: 'Image processing failed - file not found' });
+        }
+        
+        // Read the file into a Buffer
+        const imageBuffer = fs.readFileSync(req.file.path);
+        
+        if (!imageBuffer || imageBuffer.length === 0) {
+          console.error(`Empty image buffer for car ID ${carId}`);
+          return res.status(500).json({ error: 'Image processing failed - empty file' });
+        }
+        
+        // Convert the image to Base64 and store it in the database
+        updatedData.img = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
+        updatedData.imgType = req.file.mimetype;
+        
+        console.log(`New image successfully processed for car ID ${carId} (${imageBuffer.length} bytes)`);
+        
+        // Delete the temporary file from disk after encoding
+        fs.unlinkSync(req.file.path);
+      } catch (imageError) {
+        console.error(`Error processing image for car ID ${carId}:`, imageError);
+        return res.status(500).json({ error: 'Image processing failed' });
+      }
+    } else if (req.body.keepExistingImage === 'true') {
+      // If keepExistingImage flag is set, explicitly remove img from updatedData
+      // so the existing image is not overwritten
+      console.log("Keeping existing image for car ID:", carId);
+      console.log("Current car data:", JSON.stringify({ 
+        hasImage: !!car.img, 
+        imgType: car.imgType,
+        imageSize: car.img ? car.img.length : 0
+      }));
+      delete updatedData.img;
+      delete updatedData.imgType;
+    } else {
+      // No image provided and no flag to keep existing
+      console.log("No image provided for update of car ID:", carId);
+      console.log("Form data keys:", Object.keys(req.body).join(', '));
+      console.log("Headers:", JSON.stringify(req.headers));
       
-      // Convert the image to Base64 and store it in the database
-      updatedData.img = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
-      updatedData.imgType = req.file.mimetype;
-      
-      // Delete the temporary file from disk after encoding
-      fs.unlinkSync(req.file.path);
+      // Check if we should clear the image
+      if (req.body.clearImage === 'true') {
+        console.log("Clearing image for car ID:", carId);
+        updatedData.img = null;
+        updatedData.imgType = null;
+      } else {
+        // Optional: set a default image or clear the image field
+        // updatedData.img = null;
+      }
     }
     
     // Convert price to number if it's a string
@@ -565,6 +622,15 @@ const updateCar = async (req, res) => {
         }
       ]
     });
+    
+    // Log the image data length for debugging
+    if (updatedCar && updatedCar.img) {
+      const imgLength = updatedCar.img.length;
+      const imgPreview = updatedCar.img.substring(0, 50) + '...';
+      console.log(`Updated car ${carId} has image with length ${imgLength} bytes. Preview: ${imgPreview}`);
+    } else {
+      console.log(`Updated car ${carId} has no image data`);
+    }
     
     res.json(updatedCar);
   } catch (error) {

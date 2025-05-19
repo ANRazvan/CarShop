@@ -262,9 +262,12 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                     </Link>
                                 </div>
                             )}
-                        </div>                        
-                        {/* Statistics link */}
-                        <Link to="/statistics" className="nav-link">Statistics</Link>
+                        </div>                          {/* Statistics link */}                        <Link to="/statistics" className="nav-link">Statistics</Link>
+                        
+                        {/* DB Performance link - Only show for admin users */}
+                        {isAdmin() && (
+                            <Link to="/db-performance" className="nav-link">DB Performance</Link>
+                        )}
                         
                         {/* User Monitoring - Only show for admin users */}
                         {isAdmin() && (

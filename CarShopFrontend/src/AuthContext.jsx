@@ -170,6 +170,51 @@ export const AuthProvider = ({ children }) => {
     return currentUser?.role === 'admin';
   };
   
+  // Check if the token is valid or expired
+  const checkTokenValidity = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      return false;
+    }
+    
+    try {
+      // Make a request to check token validity
+      const response = await fetch(`${config.API_URL}/api/auth/verify-token`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.log('Token invalid or expired');
+        // Token is invalid, clean up
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        setCurrentUser(null);
+        setAuthToken(null);
+        return false;
+      }
+      
+      // Token is valid
+      return true;
+    } catch (error) {
+      console.error('Error checking token validity:', error);
+      return false;
+    }
+  };
+  
+  // Refresh token if needed before an operation
+  const ensureValidToken = async () => {
+    const isValid = await checkTokenValidity();
+    if (!isValid && currentUser) {
+      // Token was invalid but we had a user, so we need to log out
+      logout();
+      return false;
+    }
+    return isValid;
+  };
+  
   const value = {
     currentUser,
     loading,
@@ -180,7 +225,9 @@ export const AuthProvider = ({ children }) => {
     getProfile,
     isAuthenticated,
     getAuthToken,
-    isAdmin
+    isAdmin,
+    checkTokenValidity,
+    ensureValidToken
   };
   
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

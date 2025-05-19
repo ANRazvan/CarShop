@@ -4,6 +4,7 @@ import axios from 'axios';
 import './CarDetail.css';
 import config from './config.js';
 import CarOperationsContext from './CarOperationsContext.jsx';
+import { getDisplayUrl, validateImageUrl } from './utils/imageHelpers.js';
 
 const CarDetail = () => {
     const { id } = useParams(); // Get car ID from URL
@@ -251,13 +252,7 @@ const CarDetail = () => {
 
             <div className="car-main">
                 <img
-                    src={car.img ? 
-                        (car.img.startsWith('data:') 
-                            ? car.img // Use Base64 data directly
-                            : car.img.startsWith('http') 
-                                ? car.img 
-                                : `${config.UPLOADS_PATH}${car.img}`) 
-                        : 'https://via.placeholder.com/800x600?text=No+Image'}
+                    src={getDisplayUrl(car.img, 'https://via.placeholder.com/800x600?text=No+Image')}
                     alt={`${car.make} ${car.model}`}
                     className="car-image"
                     onError={(e) => {
@@ -291,13 +286,7 @@ const CarDetail = () => {
                             className="car-video" 
                             controls 
                             src={`${config.API_URL}/uploads/videos/${car.video}`}
-                            poster={car.img ? 
-                                (car.img.startsWith('data:') 
-                                    ? car.img // Use Base64 data directly
-                                    : car.img.startsWith('http') 
-                                        ? car.img 
-                                        : `${config.UPLOADS_PATH}${car.img}`) 
-                                : 'https://via.placeholder.com/800x600?text=Car+Video'}
+                            poster={getDisplayUrl(car.img, 'https://via.placeholder.com/800x600?text=Car+Video')}
                         >
                             Your browser does not support the video tag.
                         </video>
