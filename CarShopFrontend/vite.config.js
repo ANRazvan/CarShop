@@ -4,26 +4,27 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    sourcemap: true
+  },
   server: {
     proxy: {
       '/api': {
-        target: process.env.NODE_ENV === 'production' 
-          ? 'https://carshop-r48i.onrender.com'
-          : 'http://localhost:5000',
+        target: 'https://carshop-r48i.onrender.com',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/ws': {
-        target: process.env.NODE_ENV === 'production'
-          ? 'wss://carshop-r48i.onrender.com'
-          : 'ws://localhost:5000',
-        ws: true
+        target: 'wss://carshop-r48i.onrender.com',
+        ws: true,
+        secure: false
       },
       '/uploads': {
-        target: process.env.NODE_ENV === 'production'
-          ? 'https://carshop-r48i.onrender.com'
-          : 'http://localhost:5000',
-        changeOrigin: true
+        target: 'https://carshop-r48i.onrender.com',
+        changeOrigin: true,
+        secure: false
       }
     },
     host: true,
