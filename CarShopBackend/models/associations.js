@@ -6,7 +6,7 @@ const UserLog = require('./UserLog');
 const MonitoredUser = require('./MonitoredUser');
 
 // Define associations
-const setupAssociations = () => {
+function setupAssociations() {
   // One Brand has many Cars
   Brand.hasMany(Car, { 
     foreignKey: 'brandId',
@@ -58,6 +58,8 @@ const setupAssociations = () => {
     foreignKey: 'userId',
     as: 'user'
   });
-};
+}
 
-module.exports = setupAssociations;
+module.exports = {
+  setupAssociations
+};
