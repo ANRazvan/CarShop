@@ -50,7 +50,14 @@ app.get('/health', async (req, res) => {
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:80', 'http://localhost'],
+  origin: [
+    'http://localhost:5173', 
+    'http://127.0.0.1:5173', 
+    'http://localhost:80', 
+    'http://localhost',
+    'https://carshop-frontend.onrender.com',
+    process.env.FRONTEND_URL // Allow frontend URL from environment variable
+  ].filter(Boolean), // Remove null/undefined values
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
