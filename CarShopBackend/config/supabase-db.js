@@ -1,14 +1,22 @@
 const { Sequelize } = require('sequelize');
+const { buildDatabaseURL } = require('./database-url');
 require('dotenv').config();
 
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
+let sequelize;
+
+async function initializeSequelize() {
+    const databaseURL = await buildDatabaseURL();
+    return new Sequelize(databaseURL, {
     dialect: 'postgres',
     dialectOptions: {
         ssl: {
             require: true,
             rejectUnauthorized: false
         },
-        connectTimeout: 60000 // 60 seconds timeout
+        connectTimeout: 60000, // 60 seconds timeout
+        options: {
+            trustServerCertificate: true
+        }
     },
     pool: {
         max: 5,
@@ -42,7 +50,11 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
             /ENETUNREACH/
         ]
     }
-});
+    });
+}
 
-// Export the sequelize instance
+// Initialize sequelize
+sequelize = initializeSequelize();
+
+// Export the sequelize promise
 module.exports = sequelize;

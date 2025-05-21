@@ -30,6 +30,14 @@ const Car = sequelize.define('Car', {
     type: DataTypes.STRING, 
     allowNull: false 
   },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
+  },
   price: { 
     type: DataTypes.DECIMAL(10, 2), 
     allowNull: false 

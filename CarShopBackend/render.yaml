@@ -3,8 +3,7 @@ services:
     name: carshop-backend
     env: node
     buildCommand: npm install
-    startCommand: node index.js
-    envVars:
+    startCommand: node index.js    envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -13,6 +12,14 @@ services:
         sync: false
       - key: NODE_OPTIONS
         value: --dns-result-order=ipv4first
+      - key: UV_THREADPOOL_SIZE
+        value: "16"
+      - key: PGHOST
+        value: db.rjlewidauwbneruxdspn.supabase.co
+      - key: PGSSLMODE
+        value: require
+      - key: SEQUELIZE_DISABLE_IPV6
+        value: "true"
     healthCheckPath: /health
     disk:
       name: uploads
