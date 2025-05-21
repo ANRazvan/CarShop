@@ -1,6 +1,6 @@
 // filepath: CarShopBackend/models/Car.js
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/supabase-db');
+const sequelize = require('../config/supabase-db'); // Make sure this exports a Sequelize instance!
 
 const Car = sequelize.define('Car', {
   id: {
@@ -10,7 +10,7 @@ const Car = sequelize.define('Car', {
   },
   make: { 
     type: DataTypes.STRING,
-    allowNull: true  // Make this optional so both old and new records work
+    allowNull: true
   },
   model: { 
     type: DataTypes.STRING, 
@@ -43,33 +43,18 @@ const Car = sequelize.define('Car', {
     allowNull: false 
   },
   img: { 
-    type: DataTypes.TEXT('long'),  // Change to TEXT type to store Base64 encoded image
+    type: DataTypes.TEXT('long'),
     comment: 'Base64 encoded image data'
-  },  imgType: {
-    type: DataTypes.STRING, // Store the MIME type (e.g. image/jpeg)
+  },
+  imgType: {
+    type: DataTypes.STRING,
     defaultValue: 'image/jpeg'
   },
   brandId: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Make this optional during migration
-    references: {
-      model: 'Brands', // Note Sequelize pluralizes table names
-      key: 'id'
-    }
-  },
-  userId: {
-    type: DataTypes.INTEGER,
-    allowNull: true, // Allow null for compatibility with existing data
-    references: {
-      model: 'Users', // Sequelize pluralizes table names
-      key: 'id'
-    }
-  },
-  userId: {
-    type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Users',
+      model: 'Brands',
       key: 'id'
     }
   }
