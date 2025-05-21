@@ -1,24 +1,44 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
+// Parse connection URL
+const { URL } = require('url');
+const parsed = new URL(process.env.DATABASE_URL);
+
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
+    dialectModule: require('pg'),
+    host: parsed.hostname,
+    port: parsed.port || 5432,
     dialectOptions: {
         ssl: {
             require: true,
             rejectUnauthorized: false
         },
-        connectTimeout: 60000 // 60 seconds timeout
+        connectTimeout: 30000,
+        options: {
+            trustServerCertificate: true
+        },
+        family: 4 // Force IPv4
     },
     pool: {
-        max: 5,
+        max: 3,
         min: 0,
-        acquire: 60000,
+        acquire: 30000,
         idle: 10000
     },
-    host: 'db.rjlewidauwbneruxdspn.supabase.co',
-    port: 5432,
-    family: 4 // Force IPv4
+    retry: {
+        max: 3,
+        backoffBase: 1000,
+        backoffExponent: 1.5,
+        timeout: 30000,
+        match: [
+            'ETIMEDOUT',
+            'ECONNREFUSED',
+            'ENETUNREACH',
+            'SequelizeConnectionError'
+        ]
+    }
 });
 
 async function testConnection() {
