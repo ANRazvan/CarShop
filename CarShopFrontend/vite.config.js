@@ -7,18 +7,31 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: process.env.NODE_ENV === 'production' 
+          ? 'https://carshop-r48i.onrender.com'
+          : 'http://localhost:5000',
         changeOrigin: true,
         secure: false
       },
       '/ws': {
-        target: 'ws://localhost:5000',
+        target: process.env.NODE_ENV === 'production'
+          ? 'wss://carshop-r48i.onrender.com'
+          : 'ws://localhost:5000',
         ws: true
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: process.env.NODE_ENV === 'production'
+          ? 'https://carshop-r48i.onrender.com'
+          : 'http://localhost:5000',
         changeOrigin: true
       }
-    }
+    },
+    host: true,
+    allowedHosts: [
+      'localhost',
+      'carshop-1-x523.onrender.com',
+      'carshop-frontend.onrender.com',
+      '.onrender.com'
+    ]
   }
 })
