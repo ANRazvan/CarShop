@@ -8,9 +8,7 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
             require: true,
             rejectUnauthorized: false
         },
-        connectTimeout: 60000, // 60 seconds timeout
-        // Force IPv4 DNS resolution
-        host: 'db.rjlewidauwbneruxdspn.supabase.co'
+        connectTimeout: 60000 // 60 seconds timeout
     },
     pool: {
         max: 5,
@@ -20,9 +18,29 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     },
     host: 'db.rjlewidauwbneruxdspn.supabase.co',
     port: 5432,
-    family: 4, // Force IPv4
+    dialectModule: require('pg'),
+    keepDefaultTimezone: true,
+    timezone: '+00:00',
+    native: false,
+    define: {
+        timestamps: true
+    },    logging: console.log,
     retry: {
-        max: 5 // Maximum number of connection retries
+        max: 5,
+        match: [
+            /ConnectionError/,
+            /SequelizeConnectionError/,
+            /SequelizeConnectionRefusedError/,
+            /SequelizeHostNotFoundError/,
+            /SequelizeHostNotReachableError/,
+            /SequelizeInvalidConnectionError/,
+            /SequelizeConnectionTimedOutError/,
+            /SequelizeConnectionAcquireTimeoutError/,
+            /ETIMEDOUT/,
+            /ECONNRESET/,
+            /ECONNREFUSED/,
+            /ENETUNREACH/
+        ]
     }
 });
 
