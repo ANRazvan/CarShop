@@ -11,7 +11,7 @@ docker build -f Dockerfile.azure -t carshopreg.azurecr.io/carshop-frontend:lates
 docker push carshopreg.azurecr.io/carshop-frontend:latest
 
 # Create a web app if it doesn't exist
-az webapp create \
+az webapp create 
     --resource-group myAppGroup \
     --plan myAppServicePlan \
     --name carshop-frontend \
