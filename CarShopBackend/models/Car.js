@@ -1,6 +1,6 @@
 // filepath: CarShopBackend/models/Car.js
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/pgdb');
+const sequelize = require('../config/supabase-db');
 
 const Car = sequelize.define('Car', {
   id: {

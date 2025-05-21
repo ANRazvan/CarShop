@@ -2,12 +2,17 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const sequelize = require('./config/supabase-db');
+const { setupAssociations } = require('./models/associations');
+
+// Set up model associations
+setupAssociations();
+
 const carRoutes = require('./routes/cars');
 const brandRoutes = require('./routes/brands');
 const statisticsRoutes = require('./routes/statistics');
 const authRoutes = require('./routes/auth');
 const { handleMulterError, handleGenericErrors } = require('./middleware/errorHandlers');
-const sequelize = require('./config/supabase-db');
 
 const app = express();
 const PORT = process.env.PORT || 5000; // Changed from 3000 to 5000 to match frontend config
