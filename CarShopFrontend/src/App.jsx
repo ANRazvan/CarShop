@@ -135,13 +135,12 @@ function App() {
             }
         };
     }, [checkServerAvailability]);
-    
-    // More robust server availability check specifically for CRUD operations
+      // More robust server availability check specifically for CRUD operations
     const checkWithDebug = useCallback(async () => {
         console.log("App: Running robust availability check for CRUD operations");
         try {
             const response = await axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`, {
-                timeout: 4000 // Shorter timeout for quicker feedback
+                timeout: 10000 // Increased timeout for Docker environment
             });
             
             console.log("App: Server is responsive:", response.status);

@@ -252,17 +252,19 @@ const CarDetail = () => {
 
             <div className="car-main">
                 <img
-                    src={getDisplayUrl(car.img, 'https://via.placeholder.com/800x600?text=No+Image')}
+                    src={getDisplayUrl(car.img, '/placeholder.jpeg')}
                     alt={`${car.make} ${car.model}`}
                     className="car-image"
                     onError={(e) => {
                         console.log("Image failed to load:", e.target.src);
                         e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
+                        e.target.src = '/placeholder.jpeg';
                     }}
-                />                <div className="car-details">
+                />
+                <div className="car-details">
                     <h1 className="car-title">{car.make} {car.model}</h1>
-                    <p className="car-subtitle">{car.keywords}</p>                    <h2 className="price">${car.price}</h2>
+                    <p className="car-subtitle">{car.keywords}</p>
+                    <h2 className="price">${car.price}</h2>
                     {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}
                     <div className="button-group">
                         <button className="add-to-cart">Add to cart</button>

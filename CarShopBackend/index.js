@@ -7,13 +7,50 @@ const brandRoutes = require('./routes/brands');
 const statisticsRoutes = require('./routes/statistics');
 const authRoutes = require('./routes/auth');
 const { handleMulterError, handleGenericErrors } = require('./middleware/errorHandlers');
+const sequelize = require('./config/supabase-db');
 
 const app = express();
 const PORT = process.env.PORT || 5000; // Changed from 3000 to 5000 to match frontend config
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    await sequelize.authenticate();
+    
+    // Check disk space for uploads
+    const uploadPath = path.join(__dirname, 'uploads');
+    const diskSpace = require('disk-space');
+    const space = await new Promise((resolve, reject) => {
+      diskSpace(uploadPath, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      version: process.env.npm_package_version || '1.0.0',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      diskSpace: space
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      database: error.name === 'SequelizeConnectionError' ? 'disconnected' : 'unknown'
+    });
+  }
+});
+
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:80', 'http://localhost'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
