@@ -9,10 +9,15 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
             require: true,
             rejectUnauthorized: false
         },
-        connectTimeout: 60000, // 60 seconds timeout
+        connectTimeout: 30000, // 30 seconds timeout
         options: {
             trustServerCertificate: true
-        }
+        },
+        family: 4 // Force IPv4
+    },
+    dialectModule: require('pg'),
+    dialectModuleOptions: {
+        family: 4 // Force IPv4 both at pg and at Sequelize level
     },
     pool: {
         max: 5,
@@ -28,9 +33,10 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     native: false,
     define: {
         timestamps: true
-    },    logging: console.log,
-    retry: {
-        max: 5,
+    },    logging: console.log,    retry: {
+        max: 3, // Maximum 3 retries
+        backoffBase: 1000, // Start with 1 second delay
+        backoffExponent: 1.5, // Increase delay by this factor each retry
         match: [
             /ConnectionError/,
             /SequelizeConnectionError/,
@@ -43,9 +49,13 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
             /ETIMEDOUT/,
             /ECONNRESET/,
             /ECONNREFUSED/,
-            /ENETUNREACH/
+            /ENETUNREACH/,
+            /getaddrinfo/
         ]
     }});
+    
+// Test the connection and export the instance
+module.exports = sequelize;
 
 // Test the connection and export the instance
 module.exports = sequelize;

@@ -8,14 +8,45 @@ const { setupAssociations } = require('./models/associations');
 // Set up model associations
 setupAssociations();
 
-// Test database connection
-sequelize.authenticate()
-  .then(() => {
-    console.log('Database connection established successfully.');
-  })
-  .catch(err => {
-    console.error('Unable to connect to the database:', err);
+// Test database connection with additional options
+sequelize.authenticate({
+  retry: {
+    max: 3,
+    timeout: 30000,
+    match: [
+      'ETIMEDOUT',
+      'ECONNREFUSED',
+      'ENETUNREACH',
+      'SequelizeConnectionError'
+    ]
+  },
+  dialectOptions: {
+    connectTimeout: 30000,
+    family: 4 // Force IPv4
+  }
+})
+.then(() => {
+  console.log('[Database] Connection established successfully');
+  console.log('[Database] Connection config:', {
+    host: sequelize.config.host,
+    port: sequelize.config.port,
+    dialect: sequelize.config.dialect,
+    database: sequelize.config.database,
+    user: sequelize.config.username
   });
+})
+.catch(err => {
+  console.error('[Database] Connection error:', {
+    message: err.message,
+    name: err.name,
+    code: err.original?.code,
+    errno: err.original?.errno,
+    syscall: err.original?.syscall,
+    address: err.original?.address,
+    port: err.original?.port,
+    stack: err.stack
+  });
+});
 
 const carRoutes = require('./routes/cars');
 const brandRoutes = require('./routes/brands');
@@ -30,8 +61,14 @@ const PORT = process.env.PORT || 5000; // Changed from 3000 to 5000 to match fro
 app.get('/health', async (req, res) => {
   try {
     // Check database connection
-    await sequelize.authenticate();
-    
+    await sequelize.authenticate({
+      // Force IPv4 for this check
+      dialectOptions: {
+        connectTimeout: 10000,
+        family: 4
+      }
+    });
+
     // Check disk space for uploads
     const uploadPath = path.join(__dirname, 'uploads');
     const diskSpace = require('disk-space');
@@ -57,7 +94,10 @@ app.get('/health', async (req, res) => {
       status: 'unhealthy', 
       timestamp: new Date().toISOString(),
       error: error.message,
-      database: error.name === 'SequelizeConnectionError' ? 'disconnected' : 'unknown'
+      errorName: error.name,
+      database: 'disconnected',
+      // Include connection retry info if available
+      retryAttempt: error.original?.retryAttempt || 0
     });
   }
 });
