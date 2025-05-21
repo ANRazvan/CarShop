@@ -8,6 +8,15 @@ const { setupAssociations } = require('./models/associations');
 // Set up model associations
 setupAssociations();
 
+// Test database connection
+sequelize.authenticate()
+  .then(() => {
+    console.log('Database connection established successfully.');
+  })
+  .catch(err => {
+    console.error('Unable to connect to the database:', err);
+  });
+
 const carRoutes = require('./routes/cars');
 const brandRoutes = require('./routes/brands');
 const statisticsRoutes = require('./routes/statistics');

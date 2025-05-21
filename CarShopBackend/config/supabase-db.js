@@ -1,12 +1,8 @@
 const { Sequelize } = require('sequelize');
-const { buildDatabaseURL } = require('./database-url');
 require('dotenv').config();
 
-let sequelize;
-
-async function initializeSequelize() {
-    const databaseURL = await buildDatabaseURL();
-    return new Sequelize(databaseURL, {
+// Create Sequelize instance
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     dialectOptions: {
         ssl: {
@@ -49,12 +45,7 @@ async function initializeSequelize() {
             /ECONNREFUSED/,
             /ENETUNREACH/
         ]
-    }
-    });
-}
+    }});
 
-// Initialize sequelize
-sequelize = initializeSequelize();
-
-// Export the sequelize promise
+// Test the connection and export the instance
 module.exports = sequelize;
