@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const getConnection = require('../supabase-db');
+const getConnection = require('../config/supabase-db');
 
 async function defineCarModel() {
   const sequelize = await getConnection();
