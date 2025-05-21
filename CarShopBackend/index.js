@@ -3,10 +3,21 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const sequelize = require('./config/supabase-db');
+const { initBrandModel } = require('./models/Brand');
+const { initCarModel } = require('./models/Car');
 const { setupAssociations } = require('./models/associations');
 
-// Set up model associations
-setupAssociations();
+async function initializeModels() {
+    await initBrandModel();
+    await initCarModel();
+    await setupAssociations();
+}
+
+initializeModels().then(() => {
+    console.log('Models initialized and associations set up');
+}).catch(err => {
+    console.error('Error initializing models:', err);
+});
 
 // Test database connection with additional options
 sequelize.authenticate({
