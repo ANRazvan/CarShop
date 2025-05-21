@@ -2,30 +2,32 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const dns = require('dns');
 const getConnection = require('./config/supabase-db');
 const { initBrandModel } = require('./models/Brand');
 const { initCarModel } = require('./models/Car');
 const { setupAssociations } = require('./models/associations');
 
-async function initializeModels() {
-    await initBrandModel();
-    await initCarModel();
-    await setupAssociations();
-}
+// Force IPv4
+dns.setDefaultResultOrder('ipv4first');
 
-// Get the Sequelize instance and test connection
 async function initializeDatabase() {
     try {
+        console.log('Initializing database connection...');
         const sequelize = await getConnection();
         
-        await initializeModels();
-        console.log('Models initialized and associations set up');
-
-        // Test database connection
+        // Initialize models
+        await initBrandModel();
+        await initCarModel();
+        await setupAssociations();
+        
+        console.log('Models initialized successfully');
+        
+        // Test connection with IPv4
         await sequelize.authenticate({
             retry: {
-                max: 3,
-                timeout: 30000,
+                max: 5,
+                timeout: 60000,
                 match: [
                     'ETIMEDOUT',
                     'ECONNREFUSED',
@@ -34,45 +36,27 @@ async function initializeDatabase() {
                 ]
             },
             dialectOptions: {
-                connectTimeout: 30000,
-                family: 4 // Force IPv4
+                connectTimeout: 60000,
+                family: 4,
+                keepAlive: true
             }
         });
 
         console.log('[Database] Connection established successfully');
-        console.log('[Database] Connection config:', {
-            host: sequelize.config.host,
-            port: sequelize.config.port,
-            dialect: sequelize.config.dialect,
-            database: sequelize.config.database,
-            user: sequelize.config.username
-        });
-
         return sequelize;
     } catch (err) {
-        console.error('[Database] Connection error:', {
+        console.error('[Database] Initialization error:', {
             message: err.message,
-            name: err.name,
             code: err.original?.code,
-            errno: err.original?.errno,
-            syscall: err.original?.syscall,
-            address: err.original?.address,
-            port: err.original?.port,
-            stack: err.stack
+            address: err.original?.address
         });
         throw err;
     }
 }
 
-// Initialize the database before starting the server
+// Initialize database before starting Express
 initializeDatabase()
     .then(sequelize => {
-        const carRoutes = require('./routes/cars');
-        const brandRoutes = require('./routes/brands');
-        const statisticsRoutes = require('./routes/statistics');
-        const authRoutes = require('./routes/auth');
-        const { handleMulterError, handleGenericErrors } = require('./middleware/errorHandlers');
-
         const app = express();
         const PORT = process.env.PORT || 5000; // Changed from 3000 to 5000 to match frontend config
 
@@ -152,6 +136,12 @@ initializeDatabase()
         app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
         // Routes
+        const carRoutes = require('./routes/cars');
+        const brandRoutes = require('./routes/brands');
+        const statisticsRoutes = require('./routes/statistics');
+        const authRoutes = require('./routes/auth');
+        const { handleMulterError, handleGenericErrors } = require('./middleware/errorHandlers');
+
         app.use('/api/cars', carRoutes);
         app.use('/api/brands', brandRoutes);
         app.use('/api/statistics', statisticsRoutes);
@@ -173,9 +163,10 @@ initializeDatabase()
           });
         }
 
-        module.exports = app; // Export for testing
+        // Export app for testing
+        module.exports = app;
     })
     .catch(err => {
-        console.error('Failed to initialize database:', err);
+        console.error('Fatal: Could not initialize database:', err);
         process.exit(1);
     });
