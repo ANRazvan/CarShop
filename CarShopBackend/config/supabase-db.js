@@ -1,6 +1,23 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
+const { Client } = require('pg');
+const client = new Client({
+  host: 'db.rjlewidauwbneruxdspn.supabase.co',
+  port: 5432,
+  database: 'postgres',
+  user: 'postgres',
+  password: process.env.PG_PASSWORD,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+client.connect()
+  .then(() => console.log('Direct connection successful'))
+  .catch(e => console.error('Direct connection error:', e))
+  .finally(() => client.end());
+
 // Create Sequelize instance
 const sequelize = new Sequelize({
     dialect: 'postgres',
