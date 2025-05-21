@@ -56,6 +56,7 @@ app.use(cors({
     'http://localhost:80', 
     'http://localhost',
     'https://carshop-frontend.onrender.com',
+    'https://carshop-frontend-r48i.onrender.com',
     process.env.FRONTEND_URL // Allow frontend URL from environment variable
   ].filter(Boolean), // Remove null/undefined values
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
