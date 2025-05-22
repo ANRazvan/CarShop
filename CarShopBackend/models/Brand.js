@@ -1,3 +1,5 @@
+
+// File: models/Brand.js
 const { DataTypes } = require('sequelize');
 const getConnection = require('../config/database');
 

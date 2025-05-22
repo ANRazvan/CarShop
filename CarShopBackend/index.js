@@ -4,8 +4,6 @@ const cors = require('cors');
 const path = require('path');
 const dns = require('dns');
 const sequelize = require('./config/database');
-const { initBrandModel } = require('./models/Brand');
-const { setupAssociations } = require('./models/associations');
 
 // Force IPv4
 
