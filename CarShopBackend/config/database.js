@@ -8,7 +8,7 @@ const sequelize = new Sequelize({
     port: 5432,
     database: 'carshopdatabase',
     username: 'database',
-    password: 'ZPEVattPHXYXcQwlPawMwU8A3yBsYpOx',
+    password: 'ZPEVattPHYXYcQwLPawMwU8A3yBsYpOx',
     dialectOptions: {
         ssl: {
             require: true,
