@@ -8,10 +8,10 @@ async function createConnection() {
         const sequelize = new Sequelize({
             dialect: 'postgres',
             dialectModule: require('pg'),
-            host: 'aws-0-eu-central-1.pooler.supabase.com',
-            port: 6543,
-            database: 'postgres',
-            username: 'postgres.rjlewidauwbneruxdspn',
+            host: process.env.PG_HOST,
+            port: process.env.PG_PORT,
+            database: process.env.PG_DATABASE,
+            username: process.env.PG_USER,
             password: process.env.PG_PASSWORD,
             dialectOptions: {
                 ssl: {
@@ -19,7 +19,7 @@ async function createConnection() {
                     rejectUnauthorized: false
                 },
                 connectTimeout: 30000,
-                family: 4, // Force IPv4
+                family: 4,  // Force IPv4 for transaction pooler
                 keepAlive: true,
                 statement_timeout: 60000
             },
@@ -35,7 +35,7 @@ async function createConnection() {
             },
             logging: (msg) => console.log(`[Database] ${msg}`)
         });
-        
+
         await sequelize.authenticate();
         console.log('Database connection established successfully using transaction pooler.');
         return sequelize;
@@ -43,8 +43,7 @@ async function createConnection() {
         console.error('Failed to create database connection:', {
             error: error.message,
             code: error.original?.code,
-            address: error.original?.address,
-            stack: error.stack
+            address: error.original?.address
         });
         throw error;
     }
