@@ -1,55 +1,43 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
-const dns = require('dns');
-const { promisify } = require('util');
-
-// Promisify DNS functions
-const lookup = promisify(dns.lookup);
-const resolve6 = promisify(dns.resolve6);
-
-// The hostname and IPv6 address
-const DB_HOST = 'db.rjlewidauwbneruxdspn.supabase.co';
-const DB_PORT = 5432;
-// Wrap IPv6 address in square brackets for proper connection
-const IPV6_ADDRESS = '[2a05:d014:1c06:5f16:6c10:f2a9:c47e:b8a8]';
 
 async function createConnection() {
     try {
-        console.log('Creating database connection using IPv6...');
-        console.log(`Connecting to: ${IPV6_ADDRESS}:${DB_PORT}`);
+        console.log('Creating database connection using transaction pooler...');
         
         const sequelize = new Sequelize({
             dialect: 'postgres',
             dialectModule: require('pg'),
-            host: IPV6_ADDRESS,
-            port: DB_PORT,
+            host: 'aws-0-eu-central-1.pooler.supabase.com',
+            port: 6543,
             database: 'postgres',
-            username: 'postgres',
+            username: 'postgres.rjlewidauwbneruxdspn',
             password: process.env.PG_PASSWORD,
             dialectOptions: {
                 ssl: {
                     require: true,
                     rejectUnauthorized: false
                 },
-                connectTimeout: 60000, // Increased timeout
-                family: 6,
-                keepAlive: true
+                connectTimeout: 30000,
+                family: 4, // Force IPv4
+                keepAlive: true,
+                statement_timeout: 60000
             },
             pool: {
                 max: 3,
                 min: 0,
-                acquire: 60000, // Increased timeout
+                acquire: 30000,
                 idle: 10000
             },
             retry: {
-                max: 5,
-                timeout: 60000
+                max: 3,
+                timeout: 30000
             },
             logging: (msg) => console.log(`[Database] ${msg}`)
         });
         
         await sequelize.authenticate();
-        console.log('Database connection established successfully using IPv6.');
+        console.log('Database connection established successfully using transaction pooler.');
         return sequelize;
     } catch (error) {
         console.error('Failed to create database connection:', {
