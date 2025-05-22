@@ -1,23 +1,20 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Create Sequelize instance with IPv6 support
+// Create Sequelize instance for Render PostgreSQL
 const sequelize = new Sequelize({
     dialect: 'postgres',
-    host: 'db.rjlewidauwbneruxdspn.supabase.co',
-    port: 6543,
-    database: 'postgres',
-    username: 'postgres',
-    password: process.env.PG_PASSWORD,
+    host: 'dpg-d0nivghr0fns7393m2r0-a',
+    port: 5432,
+    database: 'carshopdatabase',
+    username: 'database',
+    password: 'ZPEVattPHXYXcQwlPawMwU8A3yBsYpOx',
     dialectOptions: {
         ssl: {
             require: true,
             rejectUnauthorized: false
         },
-        connectTimeout: 60000,
-        // Explicitly allow IPv6
-        family: 6,  // Force IPv6
-        hints: require('dns').ADDRINFO_V4MAPPED | require('dns').ADDRCONFIG
+        connectTimeout: 60000
     },
     pool: {
         max: 5,
@@ -42,11 +39,10 @@ const sequelize = new Sequelize({
 });
 
 console.log('[DATABASE] Connecting to PostgreSQL:');
-console.log(' - Database:', 'postgres');
-console.log(' - User:', 'postgres');
-console.log(' - Host:', 'db.rjlewidauwbneruxdspn.supabase.co');
-console.log(' - Port:', 6543);
-console.log(' - IPv6 Mode:', 'Enabled');
+console.log(' - Database:', 'carshopdatabase');
+console.log(' - User:', 'database');
+console.log(' - Host:', 'dpg-d0nivghr0fns7393m2r0-a');
+console.log(' - Port:', 5432);
 
 // Test the connection with better error handling
 sequelize.authenticate()
