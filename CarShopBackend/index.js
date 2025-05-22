@@ -4,7 +4,6 @@ const cors = require('cors');
 const path = require('path');
 const dns = require('dns');
 const sequelize = require('.config/database');
-const getConnection = require('./config/supabase-db');
 const { initCarModel } = require('./models/Car');
 const { initBrandModel } = require('./models/Brand');
 const { setupAssociations } = require('./models/associations');
