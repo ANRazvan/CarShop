@@ -5,7 +5,7 @@ require('dotenv').config();
 const sequelize = new Sequelize({
     dialect: 'postgres',
     host: 'db.rjlewidauwbneruxdspn.supabase.co',
-    port: 5432,
+    port: 6543,
     database: 'postgres',
     username: 'postgres',
     password: process.env.PG_PASSWORD,
@@ -45,7 +45,7 @@ console.log('[DATABASE] Connecting to PostgreSQL:');
 console.log(' - Database:', 'postgres');
 console.log(' - User:', 'postgres');
 console.log(' - Host:', 'db.rjlewidauwbneruxdspn.supabase.co');
-console.log(' - Port:', 5432);
+console.log(' - Port:', 6543);
 console.log(' - IPv6 Mode:', 'Enabled');
 
 // Test the connection with better error handling
