@@ -47,6 +47,5 @@ Car = sequelize.define('Car', {
     timestamps: false,
 });
 
-return Car;
 
 module.exports = Car;

@@ -30,7 +30,6 @@ Brand = sequelize.define('Brand', {
     timestamps: true
 });
 
-return Brand;
 
 module.exports = {
     Brand
