@@ -3,8 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dns = require('dns');
-const sequelize = require('.config/database');
-const { initCarModel } = require('./models/Car');
+const sequelize = require('../config/database');
 const { initBrandModel } = require('./models/Brand');
 const { setupAssociations } = require('./models/associations');
 
