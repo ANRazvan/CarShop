@@ -87,8 +87,21 @@ exports.register = async (req, res) => {
 // Login user
 exports.login = async (req, res) => {
   try {
-    console.log('Login attempt:', { username: req.body.username });
+    console.log('Login request received:', {
+      body: req.body,
+      headers: {
+        'content-type': req.headers['content-type'],
+        'authorization': req.headers['authorization']
+      }
+    });
+
+    if (!req.body || !req.body.username || !req.body.password) {
+      console.log('Missing credentials in request');
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
+
     const { username, password } = req.body;
+    console.log('Attempting login for username:', username);
 
     // Find user
     const user = await User.findOne({
@@ -97,7 +110,12 @@ exports.login = async (req, res) => {
       }
     });
 
-    console.log('User found:', { found: !!user, userId: user?.id });
+    console.log('User lookup result:', { 
+      found: !!user, 
+      userId: user?.id,
+      userExists: !!user,
+      hasPassword: user ? !!user.password : false
+    });
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -119,6 +137,11 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     console.log('Generating JWT token...');
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET is not set!');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
     const token = jwt.sign(
       { 
         id: user.id,
@@ -141,7 +164,7 @@ exports.login = async (req, res) => {
       ipAddress: req.ip
     });
 
-    console.log('Login successful');
+    console.log('Login successful for user:', username);
     res.status(200).json({
       message: 'Login successful',
       token,
@@ -156,9 +179,14 @@ exports.login = async (req, res) => {
     console.error('Login error details:', {
       error: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      code: error.code
     });
-    res.status(500).json({ message: 'Error logging in', error: error.message });
+    res.status(500).json({ 
+      message: 'Error logging in', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

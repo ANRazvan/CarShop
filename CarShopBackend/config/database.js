@@ -1,11 +1,10 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL environment variable is not set');
-}
+// For Render database
+const DATABASE_URL = process.env.DATABASE_URL || 'postgres://carshop_db_user:YOUR_PASSWORD@dpg-d0nivghr0fns7393m2r0-a.oregon-postgres.render.com/carshop_db';
 
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
+const sequelize = new Sequelize(DATABASE_URL, {
     dialect: 'postgres',
     dialectOptions: {
         ssl: {
