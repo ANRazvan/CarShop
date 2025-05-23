@@ -242,6 +242,81 @@ const validateCarData = (car) => {
 
 // Get paginated cars with optional filters
 const getCars = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const itemsPerPage = parseInt(req.query.itemsPerPage) || 10;
+    const offset = (page - 1) * itemsPerPage;
+    
+    // Build where conditions based on query parameters
+    const whereConditions = {};
+    
+    if (req.query.make) {
+      whereConditions.make = req.query.make;
+    }
+    
+    if (req.query.model) {
+      whereConditions.model = {
+        [Op.iLike]: `%${req.query.model}%`
+      };
+    }
+    
+    if (req.query.year) {
+      whereConditions.year = parseInt(req.query.year);
+    }
+    
+    if (req.query.fuelType) {
+      whereConditions.fuelType = req.query.fuelType;
+    }
+    
+    if (req.query.minPrice) {
+      whereConditions.price = {
+        ...whereConditions.price,
+        [Op.gte]: parseFloat(req.query.minPrice)
+      };
+    }
+    
+    if (req.query.maxPrice) {
+      whereConditions.price = {
+        ...whereConditions.price,
+        [Op.lte]: parseFloat(req.query.maxPrice)
+      };
+    }
+    
+    // Include brand information
+    const include = [{
+      model: Brand,
+      as: 'brand',
+      attributes: ['id', 'name', 'country']
+    }];
+    
+    // Get total count and cars
+    const { count, rows } = await Car.findAndCountAll({
+      where: whereConditions,
+      include: include,
+      limit: itemsPerPage,
+      offset: offset,
+      order: [
+        ['id', 'ASC']
+      ]
+    });
+    
+    const totalPages = Math.ceil(count / itemsPerPage);
+    
+    res.json({
+      cars: rows,
+      currentPage: page,
+      totalPages: totalPages,
+      totalCars: count,
+      itemsPerPage: itemsPerPage
+    });
+    
+  } catch (error) {
+    console.error('Error fetching cars:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
 };
 
 // Get car by ID
