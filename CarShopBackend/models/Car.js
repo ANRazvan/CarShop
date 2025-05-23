@@ -43,7 +43,7 @@ Car = sequelize.define('Car', {
         allowNull: false,
     },
 }, {
-    tableName: 'cars',
+    tableName: 'Cars',
     timestamps: false,
 });
 
