@@ -326,22 +326,8 @@ const getCars = async (req, res) => {
       }
     ];
 
-    try {
-      // Try to get the User model's table name - this will throw an error if User isn't properly defined
-      if (User && typeof User.getTableName === 'function') {
-        include.push({
-          model: User,
-          as: 'owner',
-          attributes: ['id', 'username', 'role'],
-          required: false
-        });
-      } else {
-        console.log('User model not included in query - model may not be properly defined');
-      }
-    } 
-    catch (error) {
-      console.log('Error including User model in query:', error.message);
-    }
+    // Remove the try/catch block that's causing issues and log a message
+    console.log('Skipping User model inclusion due to configuration issues on the server');
   
 
     
@@ -417,14 +403,14 @@ const getCarById = async (req, res) => {
     ];
     
     // Conditionally add User to the include array
-    if (User) {
-      include.push({
-        model: User,
-        as: 'owner',
-        attributes: ['id', 'username', 'role'],
-        required: false // Make this a left join so cars without owners still show up
-      });
-    }
+    // if (User) {
+    //   include.push({
+    //     model: User,
+    //     as: 'owner',
+    //     attributes: ['id', 'username', 'role'],
+    //     required: false // Make this a left join so cars without owners still show up
+    //   });
+    // }
     
     const car = await Car.findByPk(carId, { include });
     
