@@ -60,9 +60,21 @@ const User = sequelize.define('User', {
 // Add instance method for password validation
 User.prototype.validatePassword = async function(password) {
   try {
+    if (!password) {
+      console.error('Password validation error: No password provided');
+      return false;
+    }
+    if (!this.password) {
+      console.error('Password validation error: User has no stored password');
+      return false;
+    }
     return await bcrypt.compare(password, this.password);
   } catch (error) {
-    console.error('Password validation error:', error);
+    console.error('Password validation error:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return false;
   }
 };

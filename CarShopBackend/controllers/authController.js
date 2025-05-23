@@ -3,7 +3,11 @@ const { Op } = require('sequelize');
 const User = require('../models/User');
 const UserLog = require('../models/UserLog');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Check if JWT_SECRET is set
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET is not set in environment variables. Using default secret key.');
+}
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -83,6 +87,7 @@ exports.register = async (req, res) => {
 // Login user
 exports.login = async (req, res) => {
   try {
+    console.log('Login attempt:', { username: req.body.username });
     const { username, password } = req.body;
 
     // Find user
@@ -92,21 +97,28 @@ exports.login = async (req, res) => {
       }
     });
 
+    console.log('User found:', { found: !!user, userId: user?.id });
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Validate password
+    console.log('Validating password...');
     const isPasswordValid = await user.validatePassword(password);
+    console.log('Password validation result:', { isValid: isPasswordValid });
+    
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Update last login
+    console.log('Updating last login...');
     user.lastLogin = new Date();
     await user.save();
 
     // Generate JWT token
+    console.log('Generating JWT token...');
     const token = jwt.sign(
       { 
         id: user.id,
@@ -119,6 +131,7 @@ exports.login = async (req, res) => {
     );
 
     // Log login action
+    console.log('Creating login log entry...');
     await UserLog.create({
       userId: user.id,
       action: 'LOGIN',
@@ -128,6 +141,7 @@ exports.login = async (req, res) => {
       ipAddress: req.ip
     });
 
+    console.log('Login successful');
     res.status(200).json({
       message: 'Login successful',
       token,
@@ -139,7 +153,11 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error details:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({ message: 'Error logging in', error: error.message });
   }
 };
