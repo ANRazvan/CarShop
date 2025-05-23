@@ -396,22 +396,27 @@ const getCars = async (req, res) => {
 // Get car by ID
 const getCarById = async (req, res) => {
   try {
-    const carId = parseInt(req.params.id);    const car = await Car.findByPk(carId, {
-      include: [
-        {
-          model: Brand,
-          as: 'brand'
-        }
-      ]
-      if (User) {
-  include.push({
-    model: User,
-    as: 'owner',
-    attributes: ['id', 'username', 'role'],
-    required: false // Make this a left join so cars without owners still show up
-  });
-}
-    });
+    const carId = parseInt(req.params.id);
+    
+    // Create the include array
+    const include = [
+      {
+        model: Brand,
+        as: 'brand'
+      }
+    ];
+    
+    // Conditionally add User to the include array
+    if (User) {
+      include.push({
+        model: User,
+        as: 'owner',
+        attributes: ['id', 'username', 'role'],
+        required: false // Make this a left join so cars without owners still show up
+      });
+    }
+    
+    const car = await Car.findByPk(carId, { include });
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
