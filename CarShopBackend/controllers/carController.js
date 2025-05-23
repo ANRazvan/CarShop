@@ -4,6 +4,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 const Car = require('../models/Car');
 const Brand = require('../models/Brand');
+const User = require('../models/User');
 const { sequelize } = require('../config/pgdb');
 const carsData = require('../data/cars'); // Keep for reference data
 
@@ -322,13 +323,17 @@ const getCars = async (req, res) => {
         model: Brand,
         as: 'brand',
         attributes: ['id', 'name', 'country'] // Include only necessary brand attributes
-      },
-      {
-        model: require('../models/User'),
-        as: 'owner',
-        attributes: ['id', 'username', 'role'] // Include only necessary user attributes
       }
     ];
+
+    if (User) {
+  include.push({
+    model: User,
+    as: 'owner',
+    attributes: ['id', 'username', 'role'],
+    required: false // Make this a left join so cars without owners still show up
+  });
+}
     
     // Create the query options object
     const queryOptions = {
@@ -396,12 +401,16 @@ const getCarById = async (req, res) => {
         {
           model: Brand,
           as: 'brand'
-        },        {
-          model: require('../models/User'),
-          as: 'owner',
-          attributes: ['id', 'username', 'role'] // Include only necessary user attributes
         }
       ]
+      if (User) {
+  include.push({
+    model: User,
+    as: 'owner',
+    attributes: ['id', 'username', 'role'],
+    required: false // Make this a left join so cars without owners still show up
+  });
+}
     });
     
     if (!car) {
