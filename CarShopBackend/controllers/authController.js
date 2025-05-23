@@ -158,8 +158,7 @@ exports.login = async (req, res) => {
     await UserLog.create({
       userId: user.id,
       action: 'LOGIN',
-      details: 'User login',
-      ipAddress: req.ip
+      details: 'User login'
     });
 
     console.log('Login successful for user:', username);

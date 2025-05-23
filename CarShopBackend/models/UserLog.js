@@ -23,10 +23,6 @@ const UserLog = sequelize.define('UserLog', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  ipAddress: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
   timestamp: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
