@@ -338,10 +338,12 @@ const getCars = async (req, res) => {
       } else {
         console.log('User model not included in query - model may not be properly defined');
       }
-    } catch (error) {
+    } 
+    catch (error) {
       console.log('Error including User model in query:', error.message);
     }
-}
+  
+
     
     // Create the query options object
     const queryOptions = {
