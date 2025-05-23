@@ -39,6 +39,9 @@ const MonitoredUser = sequelize.define('MonitoredUser', {
     type: DataTypes.ENUM('active', 'resolved', 'false_positive'),
     defaultValue: 'active'
   }
+}, {
+    tableName: 'MonitoredUsers', // Specify the exact table name with capitalization
+    timestamps: true
 });
 
 module.exports = MonitoredUser;

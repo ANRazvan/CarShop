@@ -29,10 +29,9 @@ Brand = sequelize.define('Brand', {
         type: DataTypes.TEXT
     }
 }, {
+    tableName: 'Brands', // Specify the exact table name with capitalization
     timestamps: true
 });
 
 
-module.exports = {
-    Brand
-};
+module.exports = Brand;

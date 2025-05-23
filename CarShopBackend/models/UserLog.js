@@ -39,6 +39,9 @@ const UserLog = sequelize.define('UserLog', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
   }
+}, {
+    tableName: 'UserLogs', // Specify the exact table name with capitalization
+    timestamps: true
 });
 
 module.exports = UserLog;

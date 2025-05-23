@@ -53,6 +53,9 @@ const User = sequelize.define('User', {
       }
     }
   }
+}, {
+    tableName: 'Users', // Specify the exact table name with capitalization
+    timestamps: true
 });
 
 User.prototype.validatePassword = async function (password) {
