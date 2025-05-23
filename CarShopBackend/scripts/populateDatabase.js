@@ -1,6 +1,6 @@
 // Database population script using Faker to generate 100,000+ entries
 const { faker } = require('@faker-js/faker');
-const { sequelize } = require('../config/pgdb');
+const { sequelize } = require('../config/database');
 const Car = require('../models/Car');
 const Brand = require('../models/Brand');
 const fs = require('fs');

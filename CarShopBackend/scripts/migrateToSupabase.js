@@ -1,6 +1,6 @@
 // This script will migrate data to Supabase
 require('dotenv').config();
-const { sequelize: sourceDB } = require('../config/pgdb');
+const { sequelize: sourceDB } = require('../config/database');
 const { sequelize: targetDB } = require('../config/supabase-db');
 const { faker } = require('@faker-js/faker');
 const Car = require('../models/Car');

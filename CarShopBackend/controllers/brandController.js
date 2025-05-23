@@ -2,7 +2,7 @@
 const { Op } = require('sequelize');
 const Brand = require('../models/Brand');
 const Car = require('../models/Car');
-const { sequelize } = require('../config/pgdb'); // Add this import
+const { sequelize } = require('../config/database'); // Add this import
 
 // Get all brands with optional filtering and sorting
 const getBrands = async (req, res) => {

@@ -1,5 +1,5 @@
 // Script to check existing database indices for presentation
-const { sequelize } = require('../config/pgdb');
+const { sequelize } = require('../config/database');
 
 async function checkIndices() {
   try {
