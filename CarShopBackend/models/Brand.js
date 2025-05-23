@@ -1,9 +1,7 @@
 // File: models/Brand.js
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+const  sequelize  = require('../config/database');
 
-
-    
 Brand = sequelize.define('Brand', {
     id: {
         type: DataTypes.INTEGER,
