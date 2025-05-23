@@ -52,14 +52,19 @@ const User = sequelize.define('User', {
         user.password = await bcrypt.hash(user.password, salt);
       }
     }
-  }
-}, {
-    tableName: 'Users', // Specify the exact table name with capitalization
-    timestamps: true
+  },
+  tableName: 'Users', // Specify the exact table name with capitalization
+  timestamps: true
 });
 
-User.prototype.validatePassword = async function (password) {
-  return await bcrypt.compare(password, this.password);
+// Add instance method for password validation
+User.prototype.validatePassword = async function(password) {
+  try {
+    return await bcrypt.compare(password, this.password);
+  } catch (error) {
+    console.error('Password validation error:', error);
+    return false;
+  }
 };
 
 module.exports = User;
