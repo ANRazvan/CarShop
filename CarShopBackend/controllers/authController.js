@@ -158,8 +158,6 @@ exports.login = async (req, res) => {
     await UserLog.create({
       userId: user.id,
       action: 'LOGIN',
-      entityType: 'USER',
-      entityId: user.id,
       details: 'User login',
       ipAddress: req.ip
     });

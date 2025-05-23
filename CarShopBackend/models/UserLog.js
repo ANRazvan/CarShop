@@ -19,14 +19,6 @@ const UserLog = sequelize.define('UserLog', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  entityType: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  entityId: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  },
   details: {
     type: DataTypes.TEXT,
     allowNull: true
