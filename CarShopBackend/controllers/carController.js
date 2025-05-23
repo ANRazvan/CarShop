@@ -326,13 +326,21 @@ const getCars = async (req, res) => {
       }
     ];
 
-    if (User) {
-  include.push({
-    model: User,
-    as: 'owner',
-    attributes: ['id', 'username', 'role'],
-    required: false // Make this a left join so cars without owners still show up
-  });
+    try {
+      // Try to get the User model's table name - this will throw an error if User isn't properly defined
+      if (User && typeof User.getTableName === 'function') {
+        include.push({
+          model: User,
+          as: 'owner',
+          attributes: ['id', 'username', 'role'],
+          required: false
+        });
+      } else {
+        console.log('User model not included in query - model may not be properly defined');
+      }
+    } catch (error) {
+      console.log('Error including User model in query:', error.message);
+    }
 }
     
     // Create the query options object
