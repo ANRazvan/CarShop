@@ -318,14 +318,13 @@ const getCars = async (req, res) => {
     } else {
       order.push(['id', 'ASC']);
     }    // Include Brand and User in results
-    const include = [];
-    // const include = [
-    //   {
-    //     model: Brand,
-    //     as: 'brand',
-    //     attributes: ['id', 'name', 'country'] // Include only necessary brand attributes
-    //   }
-    // ];
+    const include = [
+      {
+        model: Brand,
+        as: 'brand',
+        attributes: ['id', 'name', 'country'] // Include only necessary brand attributes
+      }
+    ];
 
     // Remove the try/catch block that's causing issues and log a message
     console.log('Skipping User model inclusion due to configuration issues on the server');
