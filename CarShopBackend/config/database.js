@@ -1,14 +1,12 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Create Sequelize instance for Render PostgreSQL
-const sequelize = new Sequelize({
+if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is not set');
+}
+
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
-    host: 'dpg-d0nivghr0fns7393m2r0-a',
-    port: 5432,
-    database: 'carshopdatabase',
-    username: 'database',
-    password: 'ZPEVattPHYXYcQwLPawMwU8A3yBsYpOx',
     dialectOptions: {
         ssl: {
             require: true,
@@ -20,8 +18,7 @@ const sequelize = new Sequelize({
         max: 5,
         min: 0,
         acquire: 60000,
-        idle: 10000,
-        evict: 60000
+        idle: 10000
     },
     retry: {
         max: 5,
@@ -35,28 +32,24 @@ const sequelize = new Sequelize({
             'SequelizeConnectionError'
         ]
     },
-    logging: (msg) => console.log(`[Database] ${msg}`),
+    logging: console.log
 });
 
-console.log('[DATABASE] Connecting to PostgreSQL:');
-console.log(' - Database:', 'carshopdatabase');
-console.log(' - User:', 'database');
-console.log(' - Host:', 'dpg-d0nivghr0fns7393m2r0-a');
-console.log(' - Port:', 5432);
-
-// Test the connection with better error handling
+// Test the connection
 sequelize.authenticate()
     .then(() => {
-        console.log('Database connection established successfully.');
+        console.log('Database connection has been established successfully.');
     })
     .catch(err => {
-        console.error('Unable to connect to the database:', err);
-        console.error('Connection details:', {
-            code: err.original?.code,
-            address: err.original?.address,
-            port: err.original?.port,
-            syscall: err.original?.syscall
-        });
+        console.error('Unable to connect to the database:', err.message);
+        if (err.original) {
+            console.error('Original error:', {
+                code: err.original.code,
+                errno: err.original.errno,
+                syscall: err.original.syscall,
+                hostname: err.original.hostname
+            });
+        }
     });
 
 module.exports = sequelize;
