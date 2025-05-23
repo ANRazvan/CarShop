@@ -3,9 +3,40 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const sequelize = require('./config/database');
-
+const WebSocket = require('ws');
+const http = require('http');
 const app = express();
 const port = process.env.PORT || 5000;
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+  console.log('WebSocket client connected');
+  
+  // Send welcome message
+  ws.send(JSON.stringify({ type: 'CONNECTED', message: 'Connected to CarShop WebSocket server' }));
+  
+  // Handle incoming messages
+  ws.on('message', (message) => {
+    try {
+      const parsedMessage = JSON.parse(message);
+      
+      // Handle ping messages
+      if (parsedMessage.type === 'PING') {
+        ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+      }
+      
+      // Handle other message types as needed
+    } catch (error) {
+      console.error('Error parsing WebSocket message:', error);
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected');
+  });
+});
 
 // Configure middleware
 app.use(cors({
@@ -70,7 +101,7 @@ app.use(handleGenericErrors);
 // Connect to database and start server
 sequelize.authenticate()
   .then(() => {
-    app.listen(port, () => {
+    server.listen(port, () => {
       console.log(`Database connected successfully and app listening on port ${port}`);
     });
   })
