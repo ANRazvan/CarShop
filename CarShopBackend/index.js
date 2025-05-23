@@ -8,10 +8,10 @@ const http = require('http');
 const app = express();
 const port = process.env.PORT || 5000;
 const setupAssociations = require('./models/associations');
-setupAssociations();
-const { User, Car, Brand, UserLog, MonitoredUser } = require('./models');
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+
+setupAssociations();
 
 wss.on('connection', (ws) => {
   console.log('WebSocket client connected');
