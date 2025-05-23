@@ -5,7 +5,7 @@ const { Op } = require('sequelize');
 const Car = require('../models/Car');
 const Brand = require('../models/Brand');
 const User = require('../models/User');
-const { sequelize } = require('../config/database');
+const  sequelize  = require('../config/database');
 const carsData = require('../data/cars'); // Keep for reference data
 
 // Fuel types

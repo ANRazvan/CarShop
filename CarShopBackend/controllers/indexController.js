@@ -1,5 +1,5 @@
 // Statistics controller endpoint for toggling indices
-const { sequelize } = require('../config/database');
+const  sequelize  = require('../config/database');
 
 // Toggle database indices on/off
 exports.toggleIndices = async (req, res) => {

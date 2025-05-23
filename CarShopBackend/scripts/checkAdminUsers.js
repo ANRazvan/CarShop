@@ -1,5 +1,5 @@
 // Check for admin users
-const { sequelize } = require('../config/database');
+const  sequelize  = require('../config/database');
 const User = require('../models/User');
 
 async function checkAdminUsers() {
