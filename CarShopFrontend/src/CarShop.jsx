@@ -102,8 +102,8 @@ const CarShop = () => {
         searchTerm: ''
     });
     
-    // Debounce the filters to prevent too many requests for text inputs
-    const debouncedFilters = useDebounce(filters, 300);
+    // Increase debounce time to reduce requests during typing
+    const debouncedFilters = useDebounce(filters, 500);
     
     const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
     const [itemsPerPage, setItemsPerPage] = useState(searchParams.get("itemsPerPage") ? 
@@ -644,33 +644,43 @@ const CarShop = () => {
     // Use the enhanced fetch function in place of the original where appropriate
     useEffect(() => {
         console.log("Running initial data fetch");
-
-        // Fetch cars only when dependencies change
         fetchCars();
+    }, []); // Only run on mount
 
-        // Add a failsafe timeout to prevent infinite loading
-        const failsafeTimeout = setTimeout(() => {
-            if (loading) {
-                console.log("Loading timeout reached! Forcing loading state to false.");
-                setLoading(false);
-            }
-        }, 10000); // 10 seconds timeout
-
-        return () => clearTimeout(failsafeTimeout); // Cleanup timeout
-    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, isOnline, serverAvailable, fetchCars, loading]);
-
+    // Modify server availability check interval
     useEffect(() => {
-        console.log("Fetching cars with current filters:", debouncedFilters);
+        const checkInterval = setInterval(() => {
+            if (isOnline) {
+                checkServerAvailability();
+            }
+        }, 30000); // Increase to 30 seconds instead of more frequent checks
 
-        // Fetch cars only when debounced filters change
-        fetchCars();
-    }, [debouncedFilters, fetchCars]);
+        return () => clearInterval(checkInterval);
+    }, [isOnline]);
 
     const handleFilterChange = (filterType, value) => {
-        setFilters(prevFilters => ({
-            ...prevFilters,
-            [filterType]: value
-        }));
+        // Only update if the value has actually changed
+        setFilters(prevFilters => {
+            // For array type filters (makes, fuelTypes)
+            if (Array.isArray(prevFilters[filterType])) {
+                if (JSON.stringify(prevFilters[filterType]) === JSON.stringify(value)) {
+                    return prevFilters; // No change needed
+                }
+            } else {
+                // For string type filters (minPrice, maxPrice, searchTerm)
+                if (prevFilters[filterType] === value) {
+                    return prevFilters; // No change needed
+                }
+            }
+            
+            // Only update if there was an actual change
+            return {
+                ...prevFilters,
+                [filterType]: value
+            };
+        });
+        
+        // Reset to first page only if we're actually changing the filter
         setCurrentPage(1);
     };
 
