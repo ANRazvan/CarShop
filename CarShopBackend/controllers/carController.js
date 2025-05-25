@@ -464,6 +464,7 @@ const updateCar = async (req, res) => {
     // Extract update data from request body
     const updatedData = { ...req.body };
     
+    // Log update details
     console.log(`Updating car ID ${carId}, requested by user ${req.user ? req.user.username : 'unknown'}`);
     console.log(`Car before update:`, {
       make: car.make,
@@ -489,6 +490,7 @@ const updateCar = async (req, res) => {
       // If there's a new image, update the img property
     if (req.file) {
       try {
+        // Log image upload details
         console.log(`Processing new image upload for car ID ${carId}: ${req.file.originalname} (${req.file.size} bytes, ${req.file.mimetype})`);
         
         // Check if the file exists
@@ -509,10 +511,10 @@ const updateCar = async (req, res) => {
         updatedData.img = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
         updatedData.imgType = req.file.mimetype;
         
-        console.log(`New image successfully processed for car ID ${carId} (${imageBuffer.length} bytes)`);
-        
         // Delete the temporary file from disk after encoding
         fs.unlinkSync(req.file.path);
+        
+        console.log(`New image successfully processed for car ID ${carId} (${imageBuffer.length} bytes)`);
       } catch (imageError) {
         console.error(`Error processing image for car ID ${carId}:`, imageError);
         return res.status(500).json({ error: 'Image processing failed' });
@@ -582,6 +584,15 @@ const updateCar = async (req, res) => {
     } else {
       console.log(`Updated car ${carId} has no image data`);
     }
+
+    // Broadcast the car update via WebSocket
+    if (req.app.locals.broadcast) {
+      req.app.locals.broadcast({
+        type: 'CAR_UPDATED',
+        data: updatedCar,
+        timestamp: Date.now()
+      });
+    }
     
     res.json(updatedCar);
   } catch (error) {
@@ -607,6 +618,15 @@ const deleteCar = async (req, res) => {
     
     // Delete from database
     await car.destroy();
+    
+    // Broadcast the car deletion via WebSocket
+    if (req.app.locals.broadcast) {
+      req.app.locals.broadcast({
+        type: 'CAR_DELETED',
+        data: { id: carId },
+        timestamp: Date.now()
+      });
+    }
     
     res.json({ 
       message: 'Car deleted successfully',

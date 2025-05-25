@@ -269,6 +269,7 @@ function App() {
 // Helper function for offline deletion
     const handleOfflineDeletion = useCallback((id) => {
         // Convert id to string for consistent comparison
+        console.log(`App: Handling offline deletion for car ID: ${id}`);
         const idStr = String(id);
         
         // Add to offline queue for server-side deletion when online

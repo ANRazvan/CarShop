@@ -184,11 +184,17 @@ const CarShop = () => {
             params.append("sortOrder", direction);
         }
         
-        // Updated: Use brandId instead of make to match backend expectations
         if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
-            params.append("brandId", debouncedFilters.makes.join(","));
-            console.log("CarShop: Setting brandId filter:", debouncedFilters.makes.join(","));
-        }
+            // Convert brand IDs to brand names for backend compatibility
+            const brandNames = debouncedFilters.makes.map(brandId => {
+                const brand = brands.find(b => b.id === parseInt(brandId));
+                return brand ? brand.name : null;
+            }).filter(Boolean);
+            
+            if (brandNames.length > 0) {
+                params.append("make", brandNames.join(","));
+            }
+      }   
         
         if (debouncedFilters.fuelTypes.length > 0) {
             params.append("fuelType", debouncedFilters.fuelTypes.join(","));
@@ -711,9 +717,7 @@ const CarShop = () => {
             });
             return Promise.resolve({ ...updatedData, _isTemp: true });
         }
-    }, [isOnline, serverAvailable]);
-
-    // Handle WebSocket messages
+    }, [isOnline, serverAvailable]);    // Handle WebSocket messages
     useEffect(() => {
         if (!lastWebSocketMessage) return;
 
@@ -722,14 +726,27 @@ const CarShop = () => {
         switch (type) {
             case 'CAR_CREATED':
                 console.log('WebSocket: Car created:', data);
+                // Add the new car to the state without re-fetching
+                setCars(prevCars => [data, ...prevCars]);
                 break;
 
             case 'CAR_UPDATED':
                 console.log('WebSocket: Car updated:', data);
+                // Update the car in the state
+                setCars(prevCars =>
+                    prevCars.map(car => (car.id === data.id ? { ...car, ...data } : car))
+                );
                 break;
 
             case 'CAR_DELETED':
                 console.log('WebSocket: Car deleted:', data);
+                // Remove the car from the state immediately
+                setCars(prevCars => prevCars.filter(car => car.id !== data.id));
+                
+                // Also remove from deletedCarsRegistry if it exists there
+                const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+                const updatedRegistry = deletedCarsRegistry.filter(id => id !== data.id.toString());
+                localStorage.setItem('deletedCarsRegistry', JSON.stringify(updatedRegistry));
                 break;
 
             default:
@@ -749,13 +766,22 @@ const CarShop = () => {
                 if (response.data && response.data.generatedCars && response.data.generatedCars.length > 0) {
                     const newCar = response.data.generatedCars[0];
                     console.log("Adding newly generated car to state with ID:", newCar.id);
-                    
-                    // Ensure the car has a real ID
+                      // Ensure the car has a real ID
                     if (!newCar.id) {
                         console.error("Generated car missing ID:", newCar);
                     } else {
-                        // Refresh cars instead of manually adding to state
-                        fetchCars();
+                        // Add the new car to the beginning of the list (like WebSocket CAR_CREATED)
+                        setCars(prevCars => [newCar, ...prevCars]);
+                        
+                        // Update the cached cars
+                        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[], "timestamp":null}');
+                        cachedData.cars = [newCar, ...cachedData.cars];
+                        cachedData.timestamp = new Date().toISOString();
+                        localStorage.setItem('cachedCars', JSON.stringify(cachedData));
+                        
+                        // Show a notification
+                        setRealtimeUpdateReceived(true);
+                        setTimeout(() => setRealtimeUpdateReceived(false), 3000);
                     }
                 } else {
                     console.error("No new car data in response:", response.data);

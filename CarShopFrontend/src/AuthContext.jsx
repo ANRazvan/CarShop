@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import config from './config';
 import { setAuthToken } from './utils/authToken';
+import { autoFixAuth } from './utils/authReset';
 
 export const AuthContext = createContext();
 
@@ -8,21 +9,27 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
-    // Check for saved token on component mount
+  
+  // Check for saved token on component mount
   useEffect(() => {
-    const savedToken = localStorage.getItem('authToken');
-    const savedUser = localStorage.getItem('user');
+    // First, check and clean up any invalid tokens
+    const hadInvalidToken = autoFixAuth();
     
-    if (savedToken && savedUser) {
-      try {
-        // Set the token for axios headers
-        setAuthToken(savedToken);
-        setCurrentUser(JSON.parse(savedUser));
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('authToken');
-        setAuthToken(null);
+    if (!hadInvalidToken) {
+      const savedToken = localStorage.getItem('authToken');
+      const savedUser = localStorage.getItem('user');
+      
+      if (savedToken && savedUser) {
+        try {
+          // Set the token for axios headers
+          setAuthToken(savedToken);
+          setCurrentUser(JSON.parse(savedUser));
+        } catch (error) {
+          console.error('Error parsing saved user:', error);
+          localStorage.removeItem('user');
+          localStorage.removeItem('authToken');
+          setAuthToken(null);
+        }
       }
     }
     

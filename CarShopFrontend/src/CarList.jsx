@@ -152,8 +152,6 @@ const CarListComponent = ({
             // First try a forced immediate deletion
             console.log("CarList: Attempting immediate delete for car ID:", carId);
             
-            // Add a loading indicator or disable buttons here if needed
-            
             deleteCar(carId, true) // true forces immediate deletion attempt
                 .then((response) => {
                     if (response?.data?.message?.includes('offline') || 
@@ -163,14 +161,14 @@ const CarListComponent = ({
                     } else {
                         // Normal online deletion
                         console.log("CarList: Car deleted successfully on server");
+                        
+                        // Note: No need to manually filter the car out here since we'll get a WebSocket event
+                        // that will trigger the state update in the CarShop component
                     }
                 })
                 .catch(error => {
                     console.error("CarList: Error deleting car:", error);
                     alert("Failed to delete car: " + (error.message || "Unknown error"));
-                })
-                .finally(() => {
-                    // Remove loading indicator or re-enable buttons if needed
                 });
         }
     };
