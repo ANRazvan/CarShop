@@ -619,14 +619,14 @@ const deleteCar = async (req, res) => {
     // Delete from database
     await car.destroy();
     
-    // Broadcast the car deletion via WebSocket
-    if (req.app.locals.broadcast) {
-      req.app.locals.broadcast({
-        type: 'CAR_DELETED',
-        data: { id: carId },
-        timestamp: Date.now()
-      });
-    }
+    // // Broadcast the car deletion via WebSocket
+    // if (req.app.locals.broadcast) {
+    //   req.app.locals.broadcast({
+    //     type: 'CAR_DELETED',
+    //     data: { id: carId },
+    //     timestamp: Date.now()
+    //   });
+    // }
     
     res.json({ 
       message: 'Car deleted successfully',
