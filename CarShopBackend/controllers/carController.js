@@ -249,9 +249,18 @@ const getCars = async (req, res) => {
     
     // Build where conditions based on query parameters
     const whereConditions = {};
-    
-    if (req.query.make) {
+      if (req.query.make) {
       whereConditions.make = req.query.make;
+    }
+    
+    // Handle brand filtering by brandId (from frontend)
+    if (req.query.brandId) {
+      const brandIds = req.query.brandId.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      if (brandIds.length > 0) {
+        whereConditions.brandId = {
+          [Op.in]: brandIds
+        };
+      }
     }
     
     if (req.query.model) {

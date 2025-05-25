@@ -2,7 +2,7 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 // For Render database
-const DATABASE_URL = process.env.DATABASE_URL || 'postgres://carshop_db_user:YOUR_PASSWORD@dpg-d0nivghr0fns7393m2r0-a.oregon-postgres.render.com/carshop_db';
+const DATABASE_URL = process.env.DATABASE_URL || 'postgres://carshop_db_user:YOUR_PASSWORD@dpg-d0nivghr0fns7393m2r0-a.frankfurt-postgres.render.com/carshop_db';
 
 const sequelize = new Sequelize(DATABASE_URL, {
     dialect: 'postgres',

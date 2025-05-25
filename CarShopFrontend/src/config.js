@@ -1,12 +1,11 @@
+// use .env 
+
 // Configuration settings for the application
+// Dynamic API URL based on environment
+
 const config = {
-    // Dynamic API URL based on environment
-    API_URL: import.meta.env.MODE === 'production' ? 
-        'https://carshop-r48i.onrender.com' : 
-        'http://localhost:5000',
-    WS_URL: import.meta.env.MODE === 'production' ? 
-        'wss://carshop-r48i.onrender.com/ws' : 
-        'ws://localhost:5000/ws',
+    API_URL: import.meta.env.VITE_API_URL,
+    WS_URL: import.meta.env.VITE_WS_URL, // WebSocket URL
     UPLOADS_PATH: `/uploads/`, // Use a relative path for uploads
 };
 
