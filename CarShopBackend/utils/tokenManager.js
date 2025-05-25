@@ -8,7 +8,12 @@ const User = require('../models/User');
 const UserLog = require('../models/UserLog');
 const { Op } = require('sequelize');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Ensure consistent JWT secret usage
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('CRITICAL ERROR: JWT_SECRET environment variable is not set!');
+  process.exit(1);
+}
 const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '1h';
 
 class TokenManager {

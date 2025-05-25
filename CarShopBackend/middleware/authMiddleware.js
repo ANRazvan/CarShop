@@ -1,7 +1,12 @@
 const jwt = require('jsonwebtoken');
 const UserLog = require('../models/UserLog');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Ensure consistent JWT secret usage
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('CRITICAL ERROR: JWT_SECRET environment variable is not set!');
+  process.exit(1);
+}
 
 // Authentication middleware
 exports.auth = exports.authenticate = (req, res, next) => {

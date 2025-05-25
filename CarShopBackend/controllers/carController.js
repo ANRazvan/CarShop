@@ -250,8 +250,10 @@ const getCars = async (req, res) => {
     // Build where conditions based on query parameters
     const whereConditions = {};
       if (req.query.make) {
-      whereConditions.make = req.query.make;
-    }
+    whereConditions.make = {
+        [Op.in]: req.query.make.split(',')
+    };
+}
     
     // Handle brand filtering by brandId (from frontend)
     if (req.query.brandId) {

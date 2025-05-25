@@ -3,10 +3,11 @@ const { Op } = require('sequelize');
 const User = require('../models/User');
 const UserLog = require('../models/UserLog');
 
-// Check if JWT_SECRET is set
+// Ensure consistent JWT secret usage
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.warn('WARNING: JWT_SECRET is not set in environment variables. Using default secret key.');
+  console.error('CRITICAL ERROR: JWT_SECRET environment variable is not set!');
+  process.exit(1);
 }
 
 // Register a new user
