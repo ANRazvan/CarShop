@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BrandOperationsContext from './BrandOperationsContext';
+import config from './config';
 import './BrandList.css';
 
 const BrandList = () => {

@@ -6,7 +6,7 @@
 const config = {
     API_URL: import.meta.env.VITE_API_URL,
     WS_URL: import.meta.env.VITE_WS_URL, // WebSocket URL
-    UPLOADS_PATH: `/uploads/`, // Use a relative path for uploads
+    UPLOADS_PATH: `${import.meta.env.VITE_API_URL}/uploads/`, // Full URL path for uploads
 };
 
 export default config;

@@ -237,7 +237,7 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                     <Link to="/" className="dropdown-item" onClick={handleMenuItemClick}>
                                         View All Cars
                                     </Link>
-                                    <Link to="/add-car" className="dropdown-item" onClick={handleMenuItemClick}>
+                                    <Link to="/addcar" className="dropdown-item" onClick={handleMenuItemClick}>
                                         Add New Car
                                     </Link>
                                 </div>
