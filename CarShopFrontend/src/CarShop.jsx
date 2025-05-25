@@ -182,18 +182,10 @@ const CarShop = () => {
             params.append("sortBy", field);
             params.append("sortOrder", direction);
         }
-        
-        if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
-            // Convert brand IDs to brand names for backend compatibility
-            const brandNames = debouncedFilters.makes.map(brandId => {
-                const brand = brands.find(b => b.id === parseInt(brandId));
-                return brand ? brand.name : null;
-            }).filter(Boolean);
-            
-            if (brandNames.length > 0) {
-                params.append("make", brandNames.join(","));
-            }
-      }   
+          if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
+            // Use brandId directly since backend supports it
+            params.append("brandId", debouncedFilters.makes.join(","));
+        }
         
         if (debouncedFilters.fuelTypes.length > 0) {
             params.append("fuelType", debouncedFilters.fuelTypes.join(","));
