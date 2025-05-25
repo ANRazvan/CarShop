@@ -13,6 +13,16 @@ const wss = new WebSocket.Server({ server });
 
 setupAssociations();
 
+// Initialize broadcast function
+app.locals.broadcast = (message) => {
+  console.log('Broadcasting WebSocket message:', message);
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message));
+    }
+  });
+};
+
 wss.on('connection', (ws) => {
   console.log('WebSocket client connected');
   
