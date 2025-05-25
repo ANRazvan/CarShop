@@ -237,10 +237,17 @@ const CarShop = () => {
         } else {
             // Enhanced debugging for API request
             console.log(`CarShop: Fetching cars with URL: ${config.API_URL}/api/cars?${params.toString()}`);
+              const requestUrl = `${config.API_URL}/api/cars?${params.toString()}`;
+            console.log('Making API request:', requestUrl);
             
-            axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
+            axios.get(requestUrl)
                 .then((response) => {
-                    console.log("CarShop: API response received:", response.status);
+                    console.log("CarShop: API response received:", {
+                        status: response.status,
+                        totalResults: response.data?.cars?.length || 0,
+                        searchTerm: debouncedFilters.searchTerm,
+                        filters: debouncedFilters
+                    });
                     
                     if (!response.data) {
                         console.error("CarShop: No data in response");
@@ -667,17 +674,26 @@ useEffect(() => {
         filters: debouncedFilters
     });
     fetchCars();
-}, [currentPage, itemsPerPage, sortMethod, debouncedFilters]);
-
-// Handle filter changes
+}, [currentPage, itemsPerPage, sortMethod, debouncedFilters]);    // Handle filter changes
 const handleFilterChange = (filterType, value) => {
-    console.log(`Filter change: ${filterType} = ${value}`);
-    setFilters(prevFilters => ({
-        ...prevFilters,
-        [filterType]: value
-    }));
+    console.log(`Filter change: ${filterType} = ${value}`, { 
+        isOnline, 
+        serverAvailable,
+        currentPage,
+        debouncedFilters 
+    });
+    
+    setFilters(prevFilters => {
+        const newFilters = {
+            ...prevFilters,
+            [filterType]: value
+        };
+        console.log('Updated filters:', newFilters);
+        return newFilters;
+    });
+    
     setCurrentPage(1); // Reset to first page when filters change
-};    
+};
 
 
     // Log the operations received from context

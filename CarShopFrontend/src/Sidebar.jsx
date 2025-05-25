@@ -124,9 +124,8 @@ const Sidebar = ({ filters, onFilterChange, disabled }) => {
 
     const handleMaxPriceChange = (e) => {
         onFilterChange('maxPrice', e.target.value);
-    };
-
-    const handleSearchChange = (e) => {
+    };    const handleSearchChange = (e) => {
+        console.log('Search input changed:', e.target.value);
         onFilterChange('searchTerm', e.target.value);
     };
 

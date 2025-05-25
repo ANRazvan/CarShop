@@ -249,6 +249,26 @@ const getCars = async (req, res) => {
     
     // Build where conditions based on query parameters
     const whereConditions = {};
+
+    // Handle search parameter across multiple fields
+    if (req.query.search) {
+      const searchTerm = req.query.search.trim();
+      if (searchTerm) {
+        whereConditions[Op.or] = [
+          // Search in make field
+          { make: { [Op.iLike]: `%${searchTerm}%` } },
+          // Search in model field
+          { model: { [Op.iLike]: `%${searchTerm}%` } },
+          // Search in keywords field
+          { keywords: { [Op.iLike]: `%${searchTerm}%` } },
+          // Search in description field
+          { description: { [Op.iLike]: `%${searchTerm}%` } },
+          // Search in fuelType field
+          { fuelType: { [Op.iLike]: `%${searchTerm}%` } }
+        ];
+      }
+    }
+
     if (req.query.make) {
       whereConditions.make = {
         [Op.in]: req.query.make.split(',')
