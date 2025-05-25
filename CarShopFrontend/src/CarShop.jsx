@@ -1,6 +1,6 @@
 // filepath: d:\Faculty\MPP\CarShopFrontend\src\CarShop.jsx
 // CarShop.jsx
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
 import Sidebar from "./Sidebar.jsx";
 import CarList from "./CarList.jsx";
 import Cover from "./Cover.jsx";
@@ -90,8 +90,8 @@ const CarShop = () => {
     const [totalCars, setTotalCars] = useState(0);
     const [allItemsLoaded, setAllItemsLoaded] = useState(false);
     const [debugPanelExpanded, setDebugPanelExpanded] = useState(false);
-    const [lastServerCheck, setLastServerCheck] = useState(null);
-    const [lastDeleteResult, setLastDeleteResult] = useState(null);
+    const [lastServerCheck, setLastServerCheck] = useState(null);    const [lastDeleteResult, setLastDeleteResult] = useState(null);
+    const lastAvailable = useRef(false);
     
     // Consolidated filter state
     const [filters, setFilters] = useState({
@@ -149,10 +149,9 @@ const CarShop = () => {
                     }));
                 }
             });
-    }, [cars, serverAvailable, isOnline]);
-
-    // Memoize fetchCars to prevent unnecessary re-creation
+    }, [cars, serverAvailable, isOnline]);    // Memoize fetchCars to prevent unnecessary re-creation
     const fetchCars = useCallback(() => {
+        if (loading) return; // Prevent concurrent fetches
         console.log("CarShop: Fetching cars with current page:", currentPage, "and items per page:", itemsPerPage);
         console.log("CarShop: Current filters:", JSON.stringify(debouncedFilters));
         setLoading(true);
@@ -298,17 +297,24 @@ const CarShop = () => {
                         console.log("CarShop: No valid cached data available after error");
                         setCars([]);
                     }
-                    
-                    setTotalPages(1);
+                      setTotalPages(1);
                     setLoading(false);
                     
                     // Server might be down, mark it as unavailable
                     setServerAvailable(false);
                 });
         }
-        
-        return () => clearTimeout(loadingTimeout); // Clean up the timeout if component unmounts during fetch
-    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable, loading]);
+          return () => clearTimeout(loadingTimeout); // Clean up the timeout if component unmounts during fetch
+    }, [
+        currentPage,
+        itemsPerPage,
+        sortMethod,
+        debouncedFilters,
+        isOnline,
+        serverAvailable,
+        setSearchParams,
+        loading
+    ]);
 
     // Function to load more cars from the backend for infinite scroll
     const fetchInfiniteScrollCars = useCallback((pageNumber, append = false, exactCount = null) => {
@@ -624,13 +630,11 @@ const CarShop = () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
             clearInterval(intervalId); // Clean up interval on unmount
-        };
-    }, [checkServerAvailability]);
+        };    }, [checkServerAvailability]);    
 
-    // Watch for server availability changes and trigger sync if needed
+    // Watch for server availability changes and trigger sync if needed    
     useEffect(() => {
-        // Don't try to sync on initial load, only when serverAvailable changes from false to true
-        if (isOnline && serverAvailable) {
+        if (isOnline && serverAvailable && !lastAvailable.current) {
             const queue = getOfflineQueue();
             if (queue && queue.length > 0) {
                 console.log(`CarShop: Server is now available with ${queue.length} pending operations in queue`);
@@ -645,50 +649,44 @@ const CarShop = () => {
                 return () => clearTimeout(timeoutId);
             }
         }
+        lastAvailable.current = serverAvailable;
     }, [isOnline, serverAvailable, syncOfflineChanges]);
 
-    // Use the enhanced fetch function in place of the original where appropriate
-    useEffect(() => {
-        console.log("Running initial data fetch");
-        fetchCars();
-    }, []); // Only run on mount
-
-    // Modify server availability check interval
-    useEffect(() => {
-        const checkInterval = setInterval(() => {
-            if (isOnline) {
-                checkServerAvailability();
+    // Add failsafe loading timeout
+useEffect(() => {
+    if (loading) {
+        const failsafeTimeout = setTimeout(() => {
+            if (loading) {
+                console.log("Failsafe: Forcing exit from loading state");
+                setLoading(false);
             }
-        }, 30000); // Increase to 30 seconds instead of more frequent checks
+        }, 10000); // 10 seconds timeout
 
-        return () => clearInterval(checkInterval);
-    }, [isOnline]);
+        return () => clearTimeout(failsafeTimeout); // Cleanup timeout
+    }
+}, [loading]);
 
-    const handleFilterChange = (filterType, value) => {
-        // Only update if the value has actually changed
-        setFilters(prevFilters => {
-            // For array type filters (makes, fuelTypes)
-            if (Array.isArray(prevFilters[filterType])) {
-                if (JSON.stringify(prevFilters[filterType]) === JSON.stringify(value)) {
-                    return prevFilters; // No change needed
-                }
-            } else {
-                // For string type filters (minPrice, maxPrice, searchTerm)
-                if (prevFilters[filterType] === value) {
-                    return prevFilters; // No change needed
-                }
-            }
-            
-            // Only update if there was an actual change
-            return {
-                ...prevFilters,
-                [filterType]: value
-            };
-        });
-        
-        // Reset to first page only if we're actually changing the filter
-        setCurrentPage(1);
-    };
+// Main effect to fetch cars when dependencies change
+useEffect(() => {
+    console.log("Data parameters changed, fetching cars with:", {
+        page: currentPage,
+        itemsPerPage,
+        sortMethod,
+        filters: debouncedFilters
+    });
+    fetchCars();
+}, [currentPage, itemsPerPage, sortMethod, debouncedFilters]);
+
+// Handle filter changes
+const handleFilterChange = (filterType, value) => {
+    console.log(`Filter change: ${filterType} = ${value}`);
+    setFilters(prevFilters => ({
+        ...prevFilters,
+        [filterType]: value
+    }));
+    setCurrentPage(1); // Reset to first page when filters change
+};    
+
 
     // Log the operations received from context
     useEffect(() => {

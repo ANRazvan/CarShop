@@ -186,7 +186,7 @@ const BrandDetail = () => {
           ) : (
             <div className="no-cars-message">
               No cars found for this brand.
-              <Link to="/add-car" className="add-car-link">Add a Car</Link>
+              <Link to="/addcar" className="add-car-link">Add a Car</Link>
             </div>
           )}
         </div>

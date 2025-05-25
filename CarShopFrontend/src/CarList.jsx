@@ -129,17 +129,17 @@ const CarListComponent = ({
             setAllItemsLoaded(false);
             totalLoadedItems.current = 0;
         }
-    };
-
-    const handleSortMethodChange = (event) => {
-        setSortMethod(event.target.value);
-        setCurrentPage(1); // Reset to first page when changing sort method
-        
-        // Reset infinite scroll if active
+    };      const handleSortMethodChange = (event) => {
+        const newSortMethod = event.target.value;
+        console.log(`Changing sort method to: ${newSortMethod}`);
+        setSortMethod(newSortMethod);
+        // Reset to first page when changing sort method
         if (useInfiniteScroll) {
             setInfiniteScrollPage(1);
             setAllItemsLoaded(false);
             totalLoadedItems.current = 0;
+        } else {
+            setCurrentPage(1);
         }
     };
 
@@ -147,7 +147,8 @@ const CarListComponent = ({
         if (page >= 1 && page <= totalPages) {
             setCurrentPage(page);
         }
-    };    const handleDelete = (carId) => {
+    };    
+    const handleDelete = (carId) => {
         if (window.confirm("Are you sure you want to delete this car?")) {
             // First try a forced immediate deletion
             console.log("CarList: Attempting immediate delete for car ID:", carId);

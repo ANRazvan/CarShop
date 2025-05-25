@@ -249,12 +249,12 @@ const getCars = async (req, res) => {
     
     // Build where conditions based on query parameters
     const whereConditions = {};
-      if (req.query.make) {
-    whereConditions.make = {
+    if (req.query.make) {
+      whereConditions.make = {
         [Op.in]: req.query.make.split(',')
-    };
-}
-    
+      };
+    }
+
     // Handle brand filtering by brandId (from frontend)
     if (req.query.brandId) {
       const brandIds = req.query.brandId.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
@@ -293,6 +293,18 @@ const getCars = async (req, res) => {
       };
     }
     
+    // Handle sorting
+    let order = [['id', 'ASC']]; // Default sorting
+    if (req.query.sortBy && req.query.sortOrder) {
+      const field = req.query.sortBy;
+      const direction = req.query.sortOrder.toUpperCase();
+      
+      // Only allow sorting by valid fields
+      if (['price', 'year'].includes(field) && ['ASC', 'DESC'].includes(direction)) {
+        order = [[field, direction]];
+      }
+    }
+    
     // Include brand information
     const include = [{
       model: Brand,
@@ -306,9 +318,7 @@ const getCars = async (req, res) => {
       include: include,
       limit: itemsPerPage,
       offset: offset,
-      order: [
-        ['id', 'ASC']
-      ]
+      order: order // Apply the sorting
     });
     
     const totalPages = Math.ceil(count / itemsPerPage);
