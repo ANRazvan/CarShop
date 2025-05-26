@@ -2,28 +2,28 @@ const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 
-class TwoFactorService {
+const twoFactorService = {
     // Generate a new secret for a user
-    generateSecret(email) {
+    generateSecret: function(email) {
         const secret = speakeasy.generateSecret({
             name: `CarShop (${email})`,
             issuer: 'CarShop'
         });
         return secret;
-    }
+    },
 
     // Generate QR code for the secret
-    async generateQRCode(secret) {
+    generateQRCode: async function(secret) {
         try {
             const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
             return qrCodeUrl;
         } catch (error) {
             throw new Error('Failed to generate QR code');
         }
-    }
+    },
 
     // Verify TOTP token
-    verifyToken(token, secret) {
+    verifyToken: function(token, secret) {
         try {
             return speakeasy.totp.verify({
                 secret: secret.base32,
@@ -63,4 +63,65 @@ class TwoFactorService {
     }
 }
 
-module.exports = new TwoFactorService();
+module.exports = {
+    generateSecret: function(email) {
+        const secret = speakeasy.generateSecret({
+            name: `CarShop (${email})`,
+            issuer: 'CarShop'
+        });
+        return secret;
+    },
+
+    generateQRCode: async function(secret) {
+        try {
+            const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+            return qrCodeUrl;
+        } catch (error) {
+            throw new Error('Failed to generate QR code');
+        }
+    },
+
+    verifyToken: function(token, secret) {
+        try {
+            return speakeasy.totp.verify({
+                secret: secret.base32,
+                encoding: 'base32',
+                token: token,
+                window: 1
+            });
+        } catch (error) {
+            return false;
+        }
+    },
+
+    generateBackupCodes: function() {
+        const codes = [];
+        for (let i = 0; i < 10; i++) {
+            codes.push(crypto.randomBytes(4).toString('hex'));
+        }
+        return codes;
+    },
+
+    verifyBackupCode: function(userBackupCodes, providedCode) {
+        try {
+            const codes = JSON.parse(userBackupCodes);
+            const index = codes.indexOf(providedCode);
+            if (index !== -1) {
+                codes.splice(index, 1); // Remove used code
+                return {
+                    isValid: true,
+                    remainingCodes: codes
+                };
+            }
+            return {
+                isValid: false,
+                remainingCodes: codes
+            };
+        } catch (error) {
+            return {
+                isValid: false,
+                error: 'Failed to verify backup code'
+            };
+        }
+    }
+};

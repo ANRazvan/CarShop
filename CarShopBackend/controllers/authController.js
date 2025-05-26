@@ -338,3 +338,102 @@ exports.verifyBackupCode = async (req, res) => {
     res.status(500).json({ message: 'Error verifying backup code' });
   }
 };
+
+// 2FA setup - generates secret and QR code
+exports.setup2FA = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ message: '2FA is already enabled' });
+    }
+
+    const secret = twoFactorService.generateSecret(user.email);
+    const qrCode = await twoFactorService.generateQRCode(secret);
+
+    // Store the base32 secret temporarily in session
+    user.twoFactorSecret = secret.base32;
+    await user.save();
+
+    res.json({
+      qrCode,
+      secret: secret.base32, // Only show this once during setup
+      backupCodes: null // Will be generated after verification
+    });
+  } catch (error) {
+    console.error('2FA Setup Error:', error);
+    res.status(500).json({ message: 'Error setting up 2FA' });
+  }
+};
+
+// Verify and enable 2FA
+exports.verify2FASetup = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user || !user.twoFactorSecret) {
+      return res.status(400).json({ message: '2FA setup not initiated' });
+    }
+
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+
+    const isValid = twoFactorService.verifyToken(token, { base32: user.twoFactorSecret });
+    
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    const backupCodes = twoFactorService.generateBackupCodes();
+
+    await user.update({
+      twoFactorEnabled: true,
+      backupCodes: JSON.stringify(backupCodes)
+    });
+
+    // Clear the temporary secret
+    delete req.session.tempSecret;
+
+    res.json({
+      message: '2FA enabled successfully',
+      backupCodes // Show backup codes only once during setup
+    });
+  } catch (error) {
+    console.error('2FA Verification Error:', error);
+    res.status(500).json({ message: 'Error verifying 2FA setup' });
+  }
+};
+
+// Disable 2FA
+exports.disable2FA = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({ message: '2FA is not enabled' });
+    }
+
+    const isValid = twoFactorService.verifyToken(token, { base32: user.twoFactorSecret });
+    
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    await user.update({
+      twoFactorSecret: null,
+      twoFactorEnabled: false,
+      backupCodes: null
+    });
+
+    res.json({ message: '2FA disabled successfully' });
+  } catch (error) {
+    console.error('2FA Disable Error:', error);
+    res.status(500).json({ message: 'Error disabling 2FA' });
+  }
+};
