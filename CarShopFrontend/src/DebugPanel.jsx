@@ -135,13 +135,12 @@ const DebugPanel = ({
     
     return (
         <>
-            {/* Floating button to open debug panel */}
-            <button 
+            {/* Floating button to open debug panel */}            <button 
                 onClick={() => setExpanded(!expanded)}
                 style={{
                     position: 'fixed',
-                    bottom: '20px',
-                    right: '20px',
+                    top: '20px',
+                    right: expanded ? '590px' : '20px', // Positioned relative to panel
                     zIndex: 1001,
                     padding: '8px 12px',
                     backgroundColor: '#333',
@@ -149,26 +148,26 @@ const DebugPanel = ({
                     border: 'none',
                     borderRadius: '4px',
                     cursor: 'pointer',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                    transition: 'right 0.3s ease-in-out'
                 }}
             >
-                {expanded ? 'Hide' : 'Show'} Debug Panel
+                {expanded ? '✕' : '🔧'} {/* Changed to icons */}
             </button>
             
-            {/* Full debug panel */}
-            <div style={{
+            {/* Full debug panel */}            <div style={{
                 position: 'fixed',
-                bottom: expanded ? '20px' : '-500px', 
-                right: '80px',
+                top: '20px',
+                right: expanded ? '20px' : '-570px', // width + some extra to fully hide
                 width: '550px',
+                height: 'calc(100vh - 40px)', // Full height minus margins
                 backgroundColor: 'rgba(240, 240, 240, 0.95)',
                 border: '1px solid #ccc',
                 borderRadius: '8px',
                 padding: '15px',
                 boxShadow: '0 0 10px rgba(0,0,0,0.2)',
-                transition: 'bottom 0.3s ease-in-out',
+                transition: 'right 0.3s ease-in-out',
                 zIndex: 1000,
-                maxHeight: '80vh',
                 overflow: 'auto'
             }}>
                 <div style={{

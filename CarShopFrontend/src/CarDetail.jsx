@@ -267,9 +267,18 @@ const CarDetail = () => {
                     <h2 className="price">${car.price}</h2>
                     {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}
                     <div className="button-group">
-                        <button className="add-to-cart">Add to cart</button>
-                        <button className="delete" onClick={handleDelete}>Delete</button>
-                        <button className="update" onClick={() => navigate(`/UpdateCar/${car.id}`)}>Update</button>
+                        <button className="add-to-cart">
+                        <i className="fas fa-shopping-cart" style={{marginRight: '8px'}}></i>
+                        Add to cart
+                    </button>
+                    <button className="delete" onClick={handleDelete}>
+                        <i className="fas fa-trash" style={{marginRight: '8px'}}></i>
+                        Delete
+                    </button>
+                    <button className="update" onClick={() => navigate(`/UpdateCar/${car.id}`)}>
+                        <i className="fas fa-edit" style={{marginRight: '8px'}}></i>
+                        Update
+                    </button>
                     </div>
                 </div>
             </div>

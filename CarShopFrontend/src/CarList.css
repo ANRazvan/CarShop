@@ -75,19 +75,19 @@ body {
 .car-card {
     display: flex;
     flex-direction: column;
-    border: 1px solid #ddd;
-    padding: 0.7rem; /* less padding */
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    transition: transform 0.3s ease;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
     width: 100%;
-    min-width: 50;
+    min-width: 50px;
     font-size: 1rem;
-    background: #fff;
-    overflow: hidden; /* Prevent image/content overflow */
+    overflow: hidden;
     box-sizing: border-box;
-    min-height: 200px; /* less tall */
-    height: 100%; /* Fill grid cell vertically */
+    min-height: 200px;
+    height: 100%;
+    position: relative;
 }
 
 .car-card:hover {

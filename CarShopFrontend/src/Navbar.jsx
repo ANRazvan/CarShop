@@ -1,3 +1,4 @@
+//Navbar.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Navbar.css";
@@ -285,9 +286,9 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                 </button>
                             </>
                         )}
-                        <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
+                        {/* <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
                             Restore All Cars
-                        </button>
+                        </button> */}
                         
                         {/* Auth buttons */}
                         {isAuthenticated() ? (

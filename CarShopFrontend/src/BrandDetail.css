@@ -154,7 +154,7 @@
 }
 
 .car-image {
-  height: 180px;
+  height: 100%;
   overflow: hidden;
   background-color: #f8f9fa;
   display: flex;

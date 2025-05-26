@@ -1,3 +1,4 @@
+//Sidebar.jsx
 import React, { useEffect, useState } from 'react';
 import CheckboxList from './CheckboxList.jsx';
 import './Sidebar.css';
