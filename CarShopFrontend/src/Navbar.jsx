@@ -306,6 +306,13 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                             <span className="username">{currentUser?.username}</span>
                                             <span className={`role-badge ${currentUser?.role}`}>{currentUser?.role}</span>
                                         </div>
+                                        <Link 
+                                            to="/security" 
+                                            className="dropdown-item"
+                                            onClick={handleMenuItemClick}
+                                        >
+                                            Security Settings
+                                        </Link>
                                         <button 
                                             className="dropdown-item" 
                                             onClick={() => {

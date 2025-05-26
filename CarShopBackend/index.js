@@ -5,6 +5,7 @@ const path = require('path');
 const sequelize = require('./config/database');
 const WebSocket = require('ws');
 const http = require('http');
+const session = require('express-session');
 const app = express();
 const port = process.env.PORT || 5000;
 const setupAssociations = require('./models/associations');
@@ -76,6 +77,17 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 15 // 15 minutes
+    }
+}));
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

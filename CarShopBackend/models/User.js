@@ -37,6 +37,18 @@ const User = sequelize.define('User', {
   active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  twoFactorSecret: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  twoFactorEnabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  backupCodes: {
+    type: DataTypes.JSON,
+    allowNull: true
   }
 }, {
   hooks: {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './Login.css';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import TwoFactorVerify from './TwoFactorVerify';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -9,6 +10,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+  const [requires2FA, setRequires2FA] = useState(false);
   const navigate = useNavigate();
   const { login, register, authError } = useAuth();
   
@@ -18,8 +20,26 @@ const Login = () => {
     
     try {
       if (isLogin) {
-        await login(username, password);
-        navigate('/');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          if (data.requires2FA) {
+            setRequires2FA(true);
+          } else {
+            localStorage.setItem('token', data.token);
+            navigate('/');
+          }
+        } else {
+          setError(data.message || 'Authentication failed');
+        }
       } else {
         await register(username, email, password);
         setIsLogin(true);
@@ -29,7 +49,32 @@ const Login = () => {
       setError(error.message || 'Authentication failed');
     }
   };
+
+  const handle2FASuccess = (data) => {
+    localStorage.setItem('token', data.token);
+    navigate('/');
+  };
+
+  const handle2FACancel = () => {
+    setRequires2FA(false);
+    setPassword('');
+  };
   
+  if (requires2FA) {
+    return (
+      <div className="login-container">
+        <div className="login-form-container">
+          <TwoFactorVerify 
+            username={username}
+            password={password}
+            onSuccess={handle2FASuccess}
+            onCancel={handle2FACancel}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="login-container">
       <div className="login-form-container">

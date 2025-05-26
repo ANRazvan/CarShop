@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
 const User = require('../models/User');
 const UserLog = require('../models/UserLog');
+const tokenManager = require('../utils/tokenManager');
+const twoFactorService = require('../services/twoFactorService');
 
 // Ensure consistent JWT secret usage
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -101,7 +103,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    const { username, password } = req.body;
+    const { username, password, totpToken } = req.body;
     console.log('Attempting login for username:', username);
 
     // Find user
@@ -129,6 +131,21 @@ exports.login = async (req, res) => {
     
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Check if 2FA is enabled and verify TOTP token
+    if (user.twoFactorEnabled) {
+      if (!totpToken) {
+        return res.status(403).json({ 
+          requires2FA: true,
+          message: 'Two-factor authentication required' 
+        });
+      }
+
+      const isValid = twoFactorService.verifyToken(totpToken, { base32: user.twoFactorSecret });
+      if (!isValid) {
+        return res.status(401).json({ message: 'Invalid 2FA code' });
+      }
     }
 
     // Update last login
@@ -159,7 +176,7 @@ exports.login = async (req, res) => {
     await UserLog.create({
       userId: user.id,
       action: 'LOGIN',
-      details: 'User login'
+      details: user.twoFactorEnabled ? 'User login with 2FA' : 'User login'
     });
 
     console.log('Login successful for user:', username);
@@ -170,7 +187,8 @@ exports.login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        twoFactorEnabled: user.twoFactorEnabled
       }
     });
   } catch (error) {
@@ -299,4 +317,176 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
-module.exports = exports;
+// 2FA setup - generates secret and QR code
+exports.setup2FA = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ message: '2FA is already enabled' });
+    }
+
+    const secret = twoFactorService.generateSecret(user.email);
+    const qrCode = await twoFactorService.generateQRCode(secret);
+    
+    // Store secret temporarily in session
+    req.session.tempSecret = secret;
+
+    res.json({
+      qrCode,
+      secret: secret.base32, // Only show this once during setup
+      backupCodes: null // Will be generated after verification
+    });
+  } catch (error) {
+    console.error('2FA Setup Error:', error);
+    res.status(500).json({ message: 'Error setting up 2FA' });
+  }
+};
+
+// Verify and enable 2FA
+exports.verify2FASetup = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const secret = req.session.tempSecret;
+    
+    if (!secret) {
+      return res.status(400).json({ message: '2FA setup not initiated' });
+    }
+
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+
+    const isValid = twoFactorService.verifyToken(token, secret);
+    
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    const backupCodes = twoFactorService.generateBackupCodes();
+
+    await user.update({
+      twoFactorSecret: secret.base32,
+      twoFactorEnabled: true,
+      backupCodes: JSON.stringify(backupCodes)
+    });
+
+    // Clear the temporary secret
+    delete req.session.tempSecret;
+
+    res.json({
+      message: '2FA enabled successfully',
+      backupCodes // Show backup codes only once during setup
+    });
+  } catch (error) {
+    console.error('2FA Verification Error:', error);
+    res.status(500).json({ message: 'Error verifying 2FA setup' });
+  }
+};
+
+// Disable 2FA
+exports.disable2FA = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({ message: '2FA is not enabled' });
+    }
+
+    const isValid = twoFactorService.verifyToken(token, { base32: user.twoFactorSecret });
+    
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    await user.update({
+      twoFactorSecret: null,
+      twoFactorEnabled: false,
+      backupCodes: null
+    });
+
+    res.json({ message: '2FA disabled successfully' });
+  } catch (error) {
+    console.error('2FA Disable Error:', error);
+    res.status(500).json({ message: 'Error disabling 2FA' });
+  }
+};
+
+// Modified login to handle 2FA
+exports.login = async (req, res) => {
+    try {
+        const { email, password, totpToken } = req.body;
+        const user = await User.findOne({ where: { email } });
+
+        if (!user || !user.comparePassword(password)) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // Check if 2FA is enabled
+        if (user.twoFactorEnabled) {
+            if (!totpToken) {
+                return res.status(403).json({ 
+                    requires2FA: true,
+                    message: 'Please provide 2FA code' 
+                });
+            }
+
+            const isValid = twoFactorService.verifyToken(totpToken, { base32: user.twoFactorSecret });
+            if (!isValid) {
+                return res.status(401).json({ message: 'Invalid 2FA code' });
+            }
+        }
+
+        // Generate JWT token
+        const token = tokenManager.generateToken(user);
+        res.json({ token, user: { id: user.id, email: user.email } });
+    } catch (error) {
+        res.status(500).json({ message: 'Error during login' });
+    }
+};
+
+// Verify backup code
+exports.verifyBackupCode = async (req, res) => {
+    try {
+        const { username, backupCode } = req.body;
+        
+        const user = await User.findOne({ where: { username } });
+        if (!user || !user.twoFactorEnabled) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        const isValid = twoFactorService.verifyBackupCode(user.backupCodes, backupCode);
+        if (!isValid) {
+            return res.status(401).json({ message: 'Invalid backup code' });
+        }
+
+        // Generate a new JWT token
+        const token = jwt.sign(
+          { id: user.id, username: user.username, role: user.role },
+          JWT_SECRET,
+          { expiresIn: '1h' }
+        );
+
+        // Update the backup codes list (remove used code)
+        const updatedCodes = JSON.parse(user.backupCodes).filter(code => code !== backupCode);
+        await user.update({ backupCodes: JSON.stringify(updatedCodes) });
+
+        res.json({
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role
+          }
+        });
+    } catch (error) {
+        console.error('Backup Code Verification Error:', error);
+        res.status(500).json({ message: 'Error verifying backup code' });
+    }
+};

@@ -1,0 +1,105 @@
+.security-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.security-container h2 {
+    color: #333;
+    margin-bottom: 30px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+}
+
+.security-section {
+    margin-bottom: 30px;
+}
+
+.security-section h3 {
+    color: #444;
+    margin-bottom: 20px;
+}
+
+.two-factor-status {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.two-factor-status .enabled {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.two-factor-status .disabled {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.enable-2fa-button,
+.disable-2fa-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 10px 0;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.enable-2fa-button {
+    background-color: #28a745;
+    color: white;
+}
+
+.enable-2fa-button:hover {
+    background-color: #218838;
+    transform: translateY(-1px);
+}
+
+.disable-2fa-button {
+    background-color: #dc3545;
+    color: white;
+}
+
+.disable-2fa-button:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
+}
+
+.info-box, .warning-box {
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 6px;
+}
+
+.info-box {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+}
+
+.warning-box {
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+}
+
+.info-box h4, .warning-box h4 {
+    margin: 0 0 10px 0;
+    color: #0d47a1;
+}
+
+.warning-box h4 {
+    color: #856404;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}

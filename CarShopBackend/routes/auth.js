@@ -12,4 +12,10 @@ router.get('/profile', auth, logAction('VIEW', 'USER_PROFILE'), authController.g
 router.get('/verify-token', auth, authController.verifyToken);
 router.post('/refresh-token', auth, logAction('TOKEN', 'REFRESH'), authController.refreshToken);
 
+// 2FA Routes
+router.post('/2fa/setup', auth, authController.setup2FA);
+router.post('/2fa/verify-setup', auth, authController.verify2FASetup);
+router.post('/2fa/disable', auth, authController.disable2FA);
+router.post('/2fa/verify-backup', authController.verifyBackupCode);
+
 module.exports = router;
