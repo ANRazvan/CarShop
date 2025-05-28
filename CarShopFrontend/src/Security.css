@@ -71,6 +71,23 @@
     transform: translateY(-1px);
 }
 
+.regenerate-codes-button {
+    background-color: #ffc107;
+    color: #212529;
+    margin-left: 10px;
+}
+
+.regenerate-codes-button:hover {
+    background-color: #e0a800;
+    transform: translateY(-1px);
+}
+
+.two-factor-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 .info-box, .warning-box {
     margin: 20px 0;
     padding: 20px;

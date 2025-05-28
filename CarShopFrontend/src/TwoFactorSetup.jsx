@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import config from './config';
+import api from './services/api';
 import './TwoFactorSetup.css';
 
 const TwoFactorSetup = ({ onSuccess }) => {
@@ -8,31 +7,30 @@ const TwoFactorSetup = ({ onSuccess }) => {
     const [backupCodes, setBackupCodes] = useState([]);
     const [verificationCode, setVerificationCode] = useState('');
     const [showBackupCodes, setShowBackupCodes] = useState(false);
-    const [error, setError] = useState('');
-
-    const initiate2FASetup = async () => {
+    const [error, setError] = useState('');    const initiate2FASetup = async () => {
         try {
-            const response = await axios.post(`${config.API_URL}/auth/2fa/setup`, {}, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
+            const response = await api.post('/api/auth/2fa/setup', {});
             
-            setQrCode(response.data.qrCode);
-            setBackupCodes(response.data.backupCodes);
+            if (response.data.qrCode) {
+                setQrCode(response.data.qrCode);
+                setError('');
+            } else {
+                setError('Failed to generate QR code');
+            }
         } catch (error) {
             setError('Failed to initiate 2FA setup');
         }
-    };
-
-    const verify2FASetup = async (e) => {
+    };const verify2FASetup = async (e) => {
         e.preventDefault();
         try {
-            await axios.post(
-                `${config.API_URL}/auth/2fa/verify-setup`,
-                { token: verificationCode },
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }}
-            );
+            const response = await api.post('/api/auth/2fa/verify-setup', { token: verificationCode });
             
-            setShowBackupCodes(true);
+            if (response.data.backupCodes) {
+                setBackupCodes(response.data.backupCodes);
+                setShowBackupCodes(true);
+            } else {
+                setError('Failed to generate backup codes');
+            }
         } catch (error) {
             setError('Invalid verification code');
         }

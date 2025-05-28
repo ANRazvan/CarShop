@@ -437,3 +437,46 @@ exports.disable2FA = async (req, res) => {
     res.status(500).json({ message: 'Error disabling 2FA' });
   }
 };
+
+// Regenerate backup codes
+exports.regenerateBackupCodes = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({ message: '2FA is not enabled' });
+    }
+
+    // Verify current 2FA token for security
+    const isValid = twoFactorService.verifyToken(token, { base32: user.twoFactorSecret });
+    
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    // Generate new backup codes
+    const newBackupCodes = twoFactorService.generateBackupCodes();
+
+    await user.update({
+      backupCodes: JSON.stringify(newBackupCodes)
+    });
+
+    // Log the action
+    await UserLog.create({
+      userId: user.id,
+      action: 'BACKUP_CODES_REGENERATED',
+      details: 'User regenerated backup codes',
+      ip: req.ip
+    });
+
+    res.json({ 
+      message: 'Backup codes regenerated successfully',
+      backupCodes: newBackupCodes,
+      warning: 'Save these codes in a secure location. Your old backup codes are no longer valid.'
+    });
+  } catch (error) {
+    console.error('Regenerate Backup Codes Error:', error);
+    res.status(500).json({ message: 'Error regenerating backup codes' });
+  }
+};

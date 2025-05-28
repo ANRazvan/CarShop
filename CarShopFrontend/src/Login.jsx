@@ -3,8 +3,10 @@ import './Login.css';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import TwoFactorVerify from './TwoFactorVerify';
+import api from './services/api';
 
 const Login = () => {
+  console.log('Login component rendered');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,29 +18,29 @@ const Login = () => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    
-    try {
+    setError('');      try {
       if (isLogin) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ username, password }),
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-          if (data.requires2FA) {
+        try {
+          const response = await api.post('/api/auth/login', {
+            username,
+            password
+          });
+
+          console.log('Login response received:', response);
+          // If we get here, it's a successful login with token
+          localStorage.setItem('authToken', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          window.location.href = '/';
+        } catch (error) {
+          console.log('Login error caught:', error);
+          // Check if this is a 2FA requirement
+          if (error.requires2FA || (error.response?.status === 403 && error.response?.data?.requires2FA)) {
+            console.log('2FA required, showing verification form');
             setRequires2FA(true);
           } else {
-            localStorage.setItem('token', data.token);
-            navigate('/');
+            // Re-throw other errors to be caught by the outer catch
+            throw error;
           }
-        } else {
-          setError(data.message || 'Authentication failed');
         }
       } else {
         await register(username, email, password);
@@ -46,30 +48,37 @@ const Login = () => {
         setError('Registration successful! Please log in.');
       }
     } catch (error) {
-      setError(error.message || 'Authentication failed');
+      console.error('Login error:', error);
+      setError(error.response?.data?.message || 'Authentication failed');
     }
   };
 
   const handle2FASuccess = (data) => {
-    localStorage.setItem('token', data.token);
-    navigate('/');
+    localStorage.setItem('authToken', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    window.location.href = '/';
   };
 
   const handle2FACancel = () => {
     setRequires2FA(false);
     setPassword('');
-  };
-  
+  };  // Render 2FA form if required
   if (requires2FA) {
+    console.log('Rendering 2FA form with credentials:', { username, password });
     return (
       <div className="login-container">
         <div className="login-form-container">
-          <TwoFactorVerify 
-            username={username}
-            password={password}
-            onSuccess={handle2FASuccess}
-            onCancel={handle2FACancel}
-          />
+          <h2>Two-Factor Authentication Required</h2>
+          {username && password ? (
+            <TwoFactorVerify 
+              username={username}
+              password={password}
+              onSuccess={handle2FASuccess}
+              onCancel={handle2FACancel}
+            />
+          ) : (
+            <div className="error-message">Error: Missing credentials</div>
+          )}
         </div>
       </div>
     );
@@ -102,7 +111,7 @@ const Login = () => {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required={!isLogin}
+                required
               />
             </div>
           )}

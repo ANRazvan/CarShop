@@ -22,6 +22,7 @@ import UserMonitor from './UserMonitor.jsx';
 import { AuthProvider } from './AuthContext.jsx';
 import AuthDebug from './AuthDebug.jsx';
 import SessionHandler from './SessionHandler.jsx';
+import Security from './Security.jsx';
 // Import database performance component
 import IndexPerformance from './IndexPerformance.jsx';
 import config from "./config.js";
@@ -694,10 +695,10 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
                               {/* Statistics route */}
                             <Route path="/statistics" element={<StatisticsPage />} />
                             <Route path="/db-performance" element={<IndexPerformance />} />
-                            
-                            {/* Authentication and User Monitoring routes */}
+                              {/* Authentication and User Monitoring routes */}
                             <Route path="/login" element={<Login />} />
                             <Route path="/user-monitor" element={<UserMonitor />} />
+                            <Route path="/security" element={<Security />} />
                         </Routes>   
                         <Footer />
                         {/* Authentication Debug Panel */}

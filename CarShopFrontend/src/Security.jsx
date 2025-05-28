@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import config from './config';
+import api from './services/api';
 import TwoFactorSetup from './TwoFactorSetup';
 import './Security.css';
 
@@ -14,18 +13,22 @@ const Security = () => {
 
     useEffect(() => {
         fetchUserProfile();
-    }, []);
-
-    const fetchUserProfile = async () => {
+    }, []);    const fetchUserProfile = async () => {
         try {
-            const response = await axios.get(`${config.API_URL}/auth/profile`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
-            setUser(response.data);
+            const response = await api.get('/api/auth/profile');
+            setUser(response.data.user);
+            setError('');
             setLoading(false);
         } catch (error) {
-            setError('Failed to fetch user profile');
+            console.error('Profile fetch error:', error);
+            const message = error.response?.data?.message || 'Failed to fetch user profile';
+            setError(message);
             setLoading(false);
+
+            // If authentication error, redirect to login
+            if (error.response?.status === 401) {
+                navigate('/login');
+            }
         }
     };
 
@@ -39,15 +42,37 @@ const Security = () => {
             const verificationCode = prompt('Please enter your verification code to disable 2FA:');
             if (!verificationCode) return;
 
-            await axios.post(
-                `${config.API_URL}/auth/2fa/disable`,
-                { token: verificationCode },
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }}
-            );
-
+            await api.post('/api/auth/2fa/disable', { token: verificationCode });
             await fetchUserProfile();
+            setError('');
         } catch (error) {
+            console.error('2FA disable error:', error);
             setError(error.response?.data?.message || 'Failed to disable 2FA');
+        }
+    };
+
+    const handleRegenerateBackupCodes = async () => {
+        try {
+            const verificationCode = prompt('Please enter your verification code to regenerate backup codes:');
+            if (!verificationCode) return;
+
+            const response = await api.post('/api/auth/2fa/regenerate-backup', { token: verificationCode });
+            
+            if (response.data.backupCodes) {
+                const codes = response.data.backupCodes;
+                let codesText = 'Your new backup codes:\n\n';
+                codes.forEach((code, index) => {
+                    codesText += `${index + 1}. ${code}\n`;
+                });
+                codesText += '\n⚠️ Save these codes in a secure location!\n⚠️ Your old backup codes are no longer valid.';
+                
+                alert(codesText);
+            }
+            
+            setError('');
+        } catch (error) {
+            console.error('Regenerate backup codes error:', error);
+            setError(error.response?.data?.message || 'Failed to regenerate backup codes');
         }
     };
 
@@ -80,11 +105,15 @@ const Security = () => {
                         </span>
                     </p>
                 </div>
-                
-                {user?.twoFactorEnabled ? (
-                    <button className="disable-2fa-button" onClick={handleDisable2FA}>
-                        Disable 2FA
-                    </button>
+                  {user?.twoFactorEnabled ? (
+                    <div className="two-factor-actions">
+                        <button className="disable-2fa-button" onClick={handleDisable2FA}>
+                            Disable 2FA
+                        </button>
+                        <button className="regenerate-codes-button" onClick={handleRegenerateBackupCodes}>
+                            Regenerate Backup Codes
+                        </button>
+                    </div>
                 ) : (
                     <button className="enable-2fa-button" onClick={() => setShowSetup(true)}>
                         Enable 2FA
@@ -107,6 +136,15 @@ const Security = () => {
                             Make sure you have saved your backup codes in a secure location.
                             You'll need them if you lose access to your authenticator app.
                         </p>
+                    </div>
+                )}
+                
+                {user?.twoFactorEnabled && (
+                    <div className="backup-codes-section">
+                        <h4>Your Backup Codes</h4>
+                        <button className="regenerate-codes-button" onClick={handleRegenerateBackupCodes}>
+                            Regenerate Backup Codes
+                        </button>
                     </div>
                 )}
             </div>

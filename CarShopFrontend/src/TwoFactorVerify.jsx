@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import config from './config';
+import api from './services/api';
 import './TwoFactorVerify.css';
 
 const TwoFactorVerify = ({ username, password, onSuccess, onCancel }) => {
@@ -8,17 +7,20 @@ const TwoFactorVerify = ({ username, password, onSuccess, onCancel }) => {
     const [showBackupCode, setShowBackupCode] = useState(false);
     const [backupCode, setBackupCode] = useState('');
     const [error, setError] = useState('');
-
+    
+    console.log('TwoFactorVerify mounted with:', { username, password });
+    
     const verifyCode = async (e) => {
         e.preventDefault();
-        try {            const response = await axios.post(`${config.API_URL}/auth/login`, {
+        try {            const response = await api.post('/api/auth/login', {
                 username,
                 password,
                 totpToken: verificationCode
             });
 
             if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
+                localStorage.setItem('authToken', response.data.token);
+                localStorage.setItem('user', JSON.stringify(response.data.user));
                 onSuccess(response.data);
             }
         } catch (error) {
@@ -29,12 +31,11 @@ const TwoFactorVerify = ({ username, password, onSuccess, onCancel }) => {
     const verifyBackupCode = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post(`${config.API_URL}/auth/2fa/verify-backup`, {                username,
+            const response = await api.post('/api/auth/2fa/verify-backup', {                username,
                 backupCode
-            });
-
-            if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
+            });            if (response.data.token) {
+                localStorage.setItem('authToken', response.data.token);
+                localStorage.setItem('user', JSON.stringify(response.data.user));
                 onSuccess(response.data);
             }
         } catch (error) {
