@@ -4,6 +4,7 @@ import axios from 'axios';
 import './CarDetail.css';
 import config from './config.js';
 import CarOperationsContext from './CarOperationsContext.jsx';
+import { getDisplayUrl, validateImageUrl } from './utils/imageHelpers.js';
 
 const CarDetail = () => {
     const { id } = useParams(); // Get car ID from URL
@@ -251,27 +252,33 @@ const CarDetail = () => {
 
             <div className="car-main">
                 <img
-                    src={car.img ? 
-                        (car.img.startsWith('http') 
-                            ? car.img 
-                            : `${config.UPLOADS_PATH}${car.img}`) 
-                        : 'https://via.placeholder.com/800x600?text=No+Image'}
+                    src={getDisplayUrl(car.img, '/placeholder.jpeg')}
                     alt={`${car.make} ${car.model}`}
                     className="car-image"
                     onError={(e) => {
                         console.log("Image failed to load:", e.target.src);
                         e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
+                        e.target.src = '/placeholder.jpeg';
                     }}
                 />
                 <div className="car-details">
                     <h1 className="car-title">{car.make} {car.model}</h1>
                     <p className="car-subtitle">{car.keywords}</p>
                     <h2 className="price">${car.price}</h2>
+                    {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}
                     <div className="button-group">
-                        <button className="add-to-cart">Add to cart</button>
-                        <button className="delete" onClick={handleDelete}>Delete</button>
-                        <button className="update" onClick={() => navigate(`/UpdateCar/${car.id}`)}>Update</button>
+                        <button className="add-to-cart">
+                        <i className="fas fa-shopping-cart" style={{marginRight: '8px'}}></i>
+                        Add to cart
+                    </button>
+                    <button className="delete" onClick={handleDelete}>
+                        <i className="fas fa-trash" style={{marginRight: '8px'}}></i>
+                        Delete
+                    </button>
+                    <button className="update" onClick={() => navigate(`/UpdateCar/${car.id}`)}>
+                        <i className="fas fa-edit" style={{marginRight: '8px'}}></i>
+                        Update
+                    </button>
                     </div>
                 </div>
             </div>
@@ -290,11 +297,7 @@ const CarDetail = () => {
                             className="car-video" 
                             controls 
                             src={`${config.API_URL}/uploads/videos/${car.video}`}
-                            poster={car.img ? 
-                                (car.img.startsWith('http') 
-                                    ? car.img 
-                                    : `${config.UPLOADS_PATH}${car.img}`) 
-                                : 'https://via.placeholder.com/800x600?text=Car+Video'}
+                            poster={getDisplayUrl(car.img, 'https://via.placeholder.com/800x600?text=Car+Video')}
                         >
                             Your browser does not support the video tag.
                         </video>

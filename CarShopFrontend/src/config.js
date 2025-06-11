@@ -1,11 +1,16 @@
+// use .env 
+
 // Configuration settings for the application
-const IP='127.0.0.1'
+// Dynamic API URL based on environment
+
+const getBaseUrl = (url) => {
+    return url ? url.replace(/\/+$/, '') : ''; // Remove trailing slashes
+};
+
 const config = {
-    // Replace 'YOUR_VM_IP_OR_HOSTNAME' with your actual VM IP address or hostname
-    API_URL: `http://${IP}:5000`,
-    WS_URL: `ws://${IP}:5000/ws`,
-    UPLOADS_PATH: `http://${IP}:5000/uploads/`,
-    
+    API_URL: getBaseUrl(import.meta.env.VITE_API_URL),
+    WS_URL: import.meta.env.VITE_WS_URL, // WebSocket URL
+    UPLOADS_PATH: `${getBaseUrl(import.meta.env.VITE_API_URL)}/uploads`, // Full URL path for uploads
 };
 
 export default config;

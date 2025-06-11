@@ -1,12 +1,20 @@
 .sidebar-container {
-    width: 15%;
-    padding: 10px;
-    background: #737373;
-    min-width: 15%;
+    width: 18%;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    min-width: 250px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    margin: 20px;
+    transition: all 0.3s ease;
 }
 
 .sidebar-filters {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .sidebar-filters.disabled {
@@ -15,7 +23,7 @@
 }
 
 .add-car {
-    width: 97%; /* Make the width the same as the search bar */
+    width: 100%; /* Make the width the same as the search bar */
     background: black;
     color: #ffffff;
     padding: 5px;

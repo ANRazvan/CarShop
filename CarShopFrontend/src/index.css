@@ -1,11 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Poppins', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  /*color-scheme: light dark;*/
-  color: rgba(0, 0, 0, 0.87);
-  background-color: #ffffff;
+  color: #333;  background: linear-gradient(135deg, #9aa6db 0%, #764ba2 100%);
+  min-height: 100vh;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -19,7 +19,7 @@ a {
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #53cdf2;
 }
 
 body {
@@ -62,7 +62,7 @@ button {
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #5eb3a7;
 }
 button:focus,
 button:focus-visible {

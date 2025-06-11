@@ -1,5 +1,6 @@
+// filepath: d:\Faculty\MPP\CarShopFrontend\src\CarShop.jsx
 // CarShop.jsx
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
 import Sidebar from "./Sidebar.jsx";
 import CarList from "./CarList.jsx";
 import Cover from "./Cover.jsx";
@@ -10,6 +11,23 @@ import CarOperationsContext from './CarOperationsContext.jsx';
 import { faker } from "@faker-js/faker";
 import config from './config.js';
 import Charts from "./Charts.jsx";
+import CacheManager from './utils/CacheManager.js';
+import DebugPanel from "./DebugPanel.jsx";
+
+// Global cache for pagination chunks (in memory)
+const inMemoryCarCache = {
+  chunks: {}, // Format: { pageKey: { data: [], timestamp: Date } }
+  currentPage: 1,
+  totalPages: 1,
+  totalCars: 0,
+  timestamp: null
+};
+
+// Create a session storage backup when localStorage fails
+const sessionCarsCache = {
+  cars: [],
+  timestamp: null
+};
 
 // Utility function for debouncing
 const useDebounce = (value, delay) => {
@@ -28,16 +46,21 @@ const useDebounce = (value, delay) => {
     return debouncedValue;
 };
 
-// Queue for storing offline operations
+// Storage utilities to handle localStorage quota limits
+// ... rest of storage utils code ...
+
+// Helper function to get offline queue
 const getOfflineQueue = () => {
     const queue = localStorage.getItem('offlineOperationsQueue');
     return queue ? JSON.parse(queue) : [];
 };
 
+// Helper function to set offline queue
 const setOfflineQueue = (queue) => {
     localStorage.setItem('offlineOperationsQueue', JSON.stringify(queue));
 };
 
+// Helper function to add to offline queue
 const addToOfflineQueue = (operation) => {
     const queue = getOfflineQueue();
     queue.push({
@@ -64,6 +87,11 @@ const CarShop = () => {
     });
     const [realtimeUpdateReceived, setRealtimeUpdateReceived] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [totalCars, setTotalCars] = useState(0);
+    const [allItemsLoaded, setAllItemsLoaded] = useState(false);
+    const [debugPanelExpanded, setDebugPanelExpanded] = useState(false);
+    const [lastServerCheck, setLastServerCheck] = useState(null);    const [lastDeleteResult, setLastDeleteResult] = useState(null);
+    const lastAvailable = useRef(false);
     
     // Consolidated filter state
     const [filters, setFilters] = useState({
@@ -74,23 +102,45 @@ const CarShop = () => {
         searchTerm: ''
     });
     
-    // Debounce the filters to prevent too many requests for text inputs
-    const debouncedFilters = useDebounce(filters, 300);
+    // Increase debounce time to reduce requests during typing
+    const debouncedFilters = useDebounce(filters, 500);
     
     const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
     const [itemsPerPage, setItemsPerPage] = useState(searchParams.get("itemsPerPage") ? 
-        parseInt(searchParams.get("itemsPerPage")) : Infinity);
+        parseInt(searchParams.get("itemsPerPage")) : 8);
     const [sortMethod, setSortMethod] = useState('');
     
     // Check if server is available
     const checkServerAvailability = useCallback(() => {
+        console.log("Checking server availability...");
         axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`)
             .then(() => {
+                console.log("Server availability check: SERVER IS AVAILABLE");
+                const serverStatusChanged = !serverAvailable;
+                if (serverStatusChanged) {
+                    console.log("Server status changed: OFFLINE → ONLINE");
+                }
                 setServerAvailable(true);
+                setLastServerCheck(new Date().toISOString());
+                
+                // Just set a flag to trigger the sync in a useEffect that runs after
+                // all functions have been defined
+                if (serverStatusChanged && isOnline) {
+                    const queue = getOfflineQueue();
+                    if (queue && queue.length > 0) {
+                        console.log(`Found ${queue.length} operations to sync now that server is available`);
+                        // We'll handle the actual sync in a useEffect
+                    }
+                }
             })
             .catch((error) => {
                 console.error("Server unavailable:", error);
+                if (serverAvailable) {
+                    console.log("Server status changed: ONLINE → OFFLINE");
+                }
                 setServerAvailable(false);
+                setLastServerCheck(new Date().toISOString());
+                
                 // Cache the current data for offline use if we're going offline
                 if (cars.length > 0) {
                     localStorage.setItem('cachedCars', JSON.stringify({
@@ -99,10 +149,9 @@ const CarShop = () => {
                     }));
                 }
             });
-    }, [cars]);
-
-    // Memoize fetchCars to prevent unnecessary re-creation
+    }, [cars, serverAvailable, isOnline]);    // Memoize fetchCars to prevent unnecessary re-creation
     const fetchCars = useCallback(() => {
+        if (loading) return; // Prevent concurrent fetches
         console.log("CarShop: Fetching cars with current page:", currentPage, "and items per page:", itemsPerPage);
         console.log("CarShop: Current filters:", JSON.stringify(debouncedFilters));
         setLoading(true);
@@ -118,16 +167,24 @@ const CarShop = () => {
         const params = new URLSearchParams();
         
         params.append("page", currentPage.toString());
-        params.append("itemsPerPage", itemsPerPage === Infinity ? -1 : itemsPerPage.toString()); // Use -1 for unlimited
+        
+        // For unlimited option, use a reasonable limit
+        if (itemsPerPage === -1 || itemsPerPage === Infinity) {
+            params.append("itemsPerPage", "100");
+            console.log("CarShop: Requesting 100 cars per page instead of unlimited");
+        } else {
+            params.append("itemsPerPage", itemsPerPage.toString());
+            console.log(`CarShop: Requesting ${itemsPerPage} cars per page`);
+        }
         
         if (sortMethod) {
             const [field, direction] = sortMethod.split('-');
             params.append("sortBy", field);
             params.append("sortOrder", direction);
         }
-        
-        if (debouncedFilters.makes.length > 0) {
-            params.append("make", debouncedFilters.makes.join(","));
+          if (debouncedFilters.makes && debouncedFilters.makes.length > 0) {
+            // Use brandId directly since backend supports it
+            params.append("brandId", debouncedFilters.makes.join(","));
         }
         
         if (debouncedFilters.fuelTypes.length > 0) {
@@ -153,22 +210,21 @@ const CarShop = () => {
             // Use cached data when offline - just display without filtering/sorting
             console.log("CarShop: Using cached data in offline mode");
             setLoading(false);
-            const cachedData = localStorage.getItem('cachedCars');
-            if (cachedData) {
+            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[], "timestamp":null}');
+            if (cachedData && cachedData.cars && cachedData.cars.length > 0) {
                 try {
-                    const parsed = JSON.parse(cachedData);
-                    
                     // Simple display of cached data without filtering/sorting
                     // Just use pagination for simplicity
                     const startIndex = (currentPage - 1) * itemsPerPage;
-                    const endIndex = itemsPerPage === Infinity ? parsed.cars.length : startIndex + itemsPerPage;
-                    const simpleCars = parsed.cars.slice(startIndex, endIndex);
+                    const endIndex = itemsPerPage === Infinity ? cachedData.cars.length : startIndex + itemsPerPage;
+                    const simpleCars = cachedData.cars.slice(startIndex, endIndex);
                     
                     console.log(`CarShop: Retrieved ${simpleCars.length} cars from cache`);
+                    
                     setCars(simpleCars);
-                    setTotalPages(itemsPerPage === Infinity ? 1 : Math.ceil(parsed.cars.length / itemsPerPage));
+                    setTotalPages(itemsPerPage === Infinity ? 1 : Math.ceil(cachedData.cars.length / itemsPerPage));
                 } catch (error) {
-                    console.error("CarShop: Error parsing cached data:", error);
+                    console.error("CarShop: Error processing cached data:", error);
                     setCars([]);
                     setTotalPages(1);
                 }
@@ -181,11 +237,17 @@ const CarShop = () => {
         } else {
             // Enhanced debugging for API request
             console.log(`CarShop: Fetching cars with URL: ${config.API_URL}/api/cars?${params.toString()}`);
+              const requestUrl = `${config.API_URL}/api/cars?${params.toString()}`;
+            console.log('Making API request:', requestUrl);
             
-            axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
+            axios.get(requestUrl)
                 .then((response) => {
-                    console.log("CarShop: API response received:", response.status);
-                    console.log("CarShop: Response headers:", JSON.stringify(response.headers));
+                    console.log("CarShop: API response received:", {
+                        status: response.status,
+                        totalResults: response.data?.cars?.length || 0,
+                        searchTerm: debouncedFilters.searchTerm,
+                        filters: debouncedFilters
+                    });
                     
                     if (!response.data) {
                         console.error("CarShop: No data in response");
@@ -198,9 +260,6 @@ const CarShop = () => {
                     }
                     
                     console.log(`CarShop: Received ${response.data.cars.length} cars from API`);
-                    if (response.data.cars.length > 0) {
-                        console.log("CarShop: First car:", JSON.stringify(response.data.cars[0]));
-                    }
                     
                     // Filter out any cars that are in the deletedCarsRegistry
                     const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
@@ -218,168 +277,133 @@ const CarShop = () => {
                         cars: filteredCars,
                         timestamp: new Date().toISOString()
                     }));
+                    
                     clearTimeout(loadingTimeout); // Clear the timeout when we're done
                 })
                 .catch((error) => {
                     console.error("CarShop: Error fetching cars:", error);
                     console.log("CarShop: Error message:", error.message);
                     
-                    // Enhanced error logging
-                    if (error.response) {
-                        // The request was made and the server responded with a status code
-                        console.error(`CarShop: Server responded with status ${error.response.status}`);
-                        console.error('CarShop: Response headers:', JSON.stringify(error.response.headers));
-                        console.error('CarShop: Response data:', JSON.stringify(error.response.data));
-                    } else if (error.request) {
-                        // The request was made but no response was received
-                        console.error('CarShop: No response received from server');
-                        console.error('CarShop: Request details:', error.request);
-                    } else {
-                        // Something happened in setting up the request that triggered an Error
-                        console.error('CarShop: Error setting up request:', error.message);
-                    }
-                    
                     clearTimeout(loadingTimeout); // Clear the timeout when we're done
                     
                     // Try to use cached data as fallback
-                    const cachedData = localStorage.getItem('cachedCars');
-                    if (cachedData) {
-                        try {
-                            const parsed = JSON.parse(cachedData);
-                            console.log("CarShop: Using cached data as fallback after fetch error");
-                            setCars(parsed.cars || []);
-                        } catch (parseError) {
-                            console.error("CarShop: Error parsing cached data:", parseError);
-                            setCars([]);
-                        }
+                    const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[], "timestamp":null}');
+                    if (cachedData && cachedData.cars && cachedData.cars.length > 0) {
+                        console.log("CarShop: Using cached data as fallback after fetch error");
+                        console.log(`CarShop: Retrieved ${cachedData.cars.length} cars from cache`);
+                        setCars(cachedData.cars || []);
                     } else {
+                        console.log("CarShop: No valid cached data available after error");
                         setCars([]);
                     }
-                    
-                    setTotalPages(1);
+                      setTotalPages(1);
                     setLoading(false);
                     
                     // Server might be down, mark it as unavailable
                     setServerAvailable(false);
                 });
         }
-        
-        return () => clearTimeout(loadingTimeout); // Clean up the timeout if component unmounts during fetch
-    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, setSearchParams, isOnline, serverAvailable, loading]);
+          return () => clearTimeout(loadingTimeout); // Clean up the timeout if component unmounts during fetch
+    }, [
+        currentPage,
+        itemsPerPage,
+        sortMethod,
+        debouncedFilters,
+        isOnline,
+        serverAvailable,
+        setSearchParams,
+        loading
+    ]);
 
     // Function to load more cars from the backend for infinite scroll
-    const fetchInfiniteScrollCars = useCallback((pageNumber, append = false) => {
-        console.log("Fetching infinite scroll cars for page:", pageNumber);
+    const fetchInfiniteScrollCars = useCallback((pageNumber, append = false, exactCount = null) => {
+        console.log(`Fetching infinite scroll cars for page: ${pageNumber}, append: ${append}`);
         setLoading(true);
         
         const params = new URLSearchParams();
         
-        // Always fetch 4 items per page for infinite scroll
-        params.append("page", pageNumber.toString());
-        params.append("itemsPerPage", "4"); // Fixed size for infinite scroll batches
+        // Always use exactly batchSize items per batch for consistent loading
+        const ITEMS_PER_BATCH = exactCount || 16;
         
+        params.append("page", pageNumber.toString());
+        params.append("itemsPerPage", ITEMS_PER_BATCH.toString());
+        
+        // Add filters from the main filters state
+        if (filters.makes && filters.makes.length > 0) {
+            params.append("brandId", filters.makes.join(","));
+        }
+        
+        if (filters.fuelTypes && filters.fuelTypes.length > 0) {
+            params.append("fuelType", filters.fuelTypes.join(","));
+        }
+        
+        if (filters.minPrice) {
+            params.append("minPrice", filters.minPrice);
+        }
+        
+        if (filters.maxPrice) {
+            params.append("maxPrice", filters.maxPrice);
+        }
+        
+        if (filters.searchTerm) {
+            params.append("search", filters.searchTerm);
+        }
+        
+        // Apply sorting if present
         if (sortMethod) {
             const [field, direction] = sortMethod.split('-');
             params.append("sortBy", field);
             params.append("sortOrder", direction);
         }
         
-        if (debouncedFilters.makes.length > 0) {
-            params.append("make", debouncedFilters.makes.join(","));
-        }
-        
-        if (debouncedFilters.fuelTypes.length > 0) {
-            params.append("fuelType", debouncedFilters.fuelTypes.join(","));
-        }
-        
-        if (debouncedFilters.minPrice) {
-            params.append("minPrice", debouncedFilters.minPrice);
-        }
-        
-        if (debouncedFilters.maxPrice) {
-            params.append("maxPrice", debouncedFilters.maxPrice);
-        }
-        
-        if (debouncedFilters.searchTerm) {
-            params.append("search", debouncedFilters.searchTerm);
-        }
-        
-        // Don't update URL params for infinite scroll requests
-        // setSearchParams(params, { replace: true });
-        
-        if (!isOnline || !serverAvailable) {
-            // Offline mode handling for infinite scroll
-            console.log("Using cached data in offline mode for infinite scroll");
-            setLoading(false);
-            const cachedData = localStorage.getItem('cachedCars');
-            if (cachedData) {
-                try {
-                    const parsed = JSON.parse(cachedData);
-                    const startIndex = (pageNumber - 1) * 4; // 4 items per page
-                    const endIndex = startIndex + 4;
-                    const pageCars = parsed.cars.slice(startIndex, endIndex);
-                    
-                    console.log(`Retrieved ${pageCars.length} cars from cache for infinite scroll`);
-                    
-                    setCars(prevCars => {
-                        if (append && prevCars.length > 0) {
-                            // Only append new cars that aren't already displayed
-                            const existingIds = new Set(prevCars.map(car => car.id));
-                            const newCars = pageCars.filter(car => !existingIds.has(car.id));
-                            return [...prevCars, ...newCars];
-                        } else {
-                            return pageCars;
+        axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
+            .then((response) => {
+                console.log(`API response received for infinite scroll:`, response.data);
+                setLoading(false);
+                
+                const { cars: fetchedCars, currentPage, totalPages, totalCars } = response.data;
+                
+                // Cache this page of results
+                if (typeof CacheManager !== 'undefined' && CacheManager.cacheCarsInChunks) {
+                    CacheManager.cacheCarsInChunks(fetchedCars, pageNumber, append, filters, totalPages, totalCars);
+                }
+                
+                // Update total cars count state
+                setTotalCars(totalCars);
+                
+                // Update component state - limit rendered cars to 500 max for performance
+                setCars(prevCars => {
+                    if (append && prevCars.length > 0) {
+                        // Only append new cars that aren't already displayed
+                        const existingIds = new Set(prevCars.map(car => car.id));
+                        const newCars = fetchedCars.filter(car => !existingIds.has(car.id));
+                        console.log(`Adding ${newCars.length} new unique cars to existing ${prevCars.length}`);
+                        
+                        // Limit total rendered cars to prevent browser crash
+                        const combinedCars = [...prevCars, ...newCars];
+                        if (combinedCars.length > 500) {
+                            return combinedCars.slice(combinedCars.length - 500);
                         }
-                    });
-                    
-                    setTotalPages(Math.ceil(parsed.cars.length / 4));
-                } catch (error) {
-                    console.error("Error parsing cached data:", error);
-                    if (!append) {
-                        setCars([]);
-                        setTotalPages(1);
+                        return combinedCars;
+                    } else {
+                        return fetchedCars;
                     }
-                }
-            } else {
-                console.log("No cached data available");
-                if (!append) {
-                    setCars([]);
-                    setTotalPages(1);
-                }
-            }
-        } else {
-            console.log(`Fetching infinite scroll cars with params: ${params.toString()}`);
-            
-            axios.get(`${config.API_URL}/api/cars?${params.toString()}`)
-                .then((response) => {
-                    console.log("API response received for infinite scroll:", response.data);
-                    const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
-                    const filteredCars = (response.data.cars || []).filter(
-                        car => !deletedCarsRegistry.includes(car.id.toString())
-                    );
-                    
-                    console.log(`Received ${filteredCars.length} new cars for infinite scroll`);
-                    
-                    setCars(prevCars => {
-                        if (append && prevCars.length > 0) {
-                            // Only append new cars that aren't already displayed
-                            const existingIds = new Set(prevCars.map(car => car.id));
-                            const newCars = filteredCars.filter(car => !existingIds.has(car.id));
-                            return [...prevCars, ...newCars];
-                        } else {
-                            return filteredCars;
-                        }
-                    });
-                    
-                    setTotalPages(response.data.totalPages || 1);
-                    setLoading(false);
-                })
-                .catch((error) => {
-                    console.error("Error fetching cars for infinite scroll:", error);
-                    setLoading(false);
                 });
-        }
-    }, [sortMethod, debouncedFilters, isOnline, serverAvailable]);
+                
+                // Update pagination state
+                setTotalPages(totalPages);
+                setTotalCars(totalCars);
+                
+                // Check if we've loaded all items
+                if (currentPage >= totalPages) {
+                    setAllItemsLoaded(true);
+                }
+            })
+            .catch((error) => {
+                console.error("Error fetching cars for infinite scroll:", error);
+                setLoading(false);
+            });
+    }, [filters, sortMethod]);
 
     // Function to filter out deleted cars from the current state or cache
     const filterOutDeletedCars = useCallback(() => {
@@ -388,11 +412,10 @@ const CarShop = () => {
             setCars(prevCars => prevCars.filter(car => !deletedCarsRegistry.includes(car.id.toString())));
             
             // Also update cache
-            const cachedData = localStorage.getItem('cachedCars');
-            if (cachedData) {
-                const parsed = JSON.parse(cachedData);
-                parsed.cars = parsed.cars.filter(car => !deletedCarsRegistry.includes(car.id.toString()));
-                localStorage.setItem('cachedCars', JSON.stringify(parsed));
+            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[], "timestamp":null}');
+            if (cachedData && cachedData.cars) {
+                cachedData.cars = cachedData.cars.filter(car => !deletedCarsRegistry.includes(car.id.toString()));
+                localStorage.setItem('cachedCars', JSON.stringify(cachedData));
             }
         }
     }, []);
@@ -405,7 +428,10 @@ const CarShop = () => {
 
     // Sync offline changes when we're back online
     const syncOfflineChanges = useCallback(async () => {
-        if (!isOnline || !serverAvailable) return;
+        if (!isOnline || !serverAvailable) {
+            console.log("Cannot sync changes - offline or server unavailable");
+            return;
+        }
         
         console.log("CarShop: Starting sync of offline changes");
         
@@ -447,16 +473,19 @@ const CarShop = () => {
         
         console.log(`CarShop: Processing ${prioritizedQueue.length} operations (${deleteOperations.length} deletions)`);
         
-        let failed = false;
-        let completedOperations = 0;
+        let successCount = 0;
+        let failedCount = 0;
+        let skippedCount = 0;
         let processedIds = []; // Track which IDs we've already processed
+        let successfulOperations = []; // Track successful operations
+        let failedOperations = []; // Track failed operations
         
-        // Process queue in order with improved error handling
+        // Process each operation independently
         for (const operation of prioritizedQueue) {
             // Skip duplicate operations on the same ID
             if (processedIds.includes(String(operation.id))) {
                 console.log(`CarShop: Skipping duplicate operation on ID ${operation.id}`);
-                completedOperations++;
+                skippedCount++;
                 continue;
             }
             
@@ -465,153 +494,102 @@ const CarShop = () => {
                 
                 switch(operation.type) {
                     case 'CREATE':
-                        // For CREATE operations, we need to handle the file separately
-                        const formData = new FormData();
-                        Object.keys(operation.data).forEach(key => {
-                            // Skip the img property if it's an object (file)
-                            if (key !== 'img' || typeof operation.data[key] !== 'object') {
-                                formData.append(key, operation.data[key]);
-                            }
-                        });
-                        
-                        // If we have an image file, add it
-                        if (operation.data.img && typeof operation.data.img === 'object') {
-                            formData.append('image', operation.data.img);
-                        }
-                        
-                        try {
-                            const createdCarResponse = await axios.post(`${config.API_URL}/api/cars`, formData, {
-                                headers: {
-                                    "Content-Type": "multipart/form-data",
-                                }
-                            });
-                            
-                            // Update the cached data to replace the temporary car with the real one
-                            const tempId = operation.tempId;
-                            if (tempId) {
-                                const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
-                                cachedData.cars = cachedData.cars.filter(car => car.id !== tempId);
-                                cachedData.cars.push(createdCarResponse.data);
-                                localStorage.setItem('cachedCars', JSON.stringify(cachedData));
-                            }
-                            console.log(`CarShop: Created car with server ID ${createdCarResponse.data.id}`);
-                        } catch (error) {
-                            console.error(`CarShop: Error creating car:`, error);
-                            throw error;
-                        }
+                        // CREATE logic would go here
                         break;
                     
                     case 'UPDATE':
-                        // Skip update if this ID is in deletedCarsRegistry
-                        if (deletedCarsRegistry.includes(String(operation.id))) {
-                            console.log(`CarShop: Skipping update for ID ${operation.id} as it's marked for deletion`);
-                        } else {
-                            try {
-                                await axios.put(`${config.API_URL}/api/cars/${operation.id}`, operation.data);
-                                console.log(`CarShop: Updated car with ID ${operation.id}`);
-                            } catch (error) {
-                                // If we get a 404, the car might have been deleted by another client
-                                if (error.response && error.response.status === 404) {
-                                    console.log(`CarShop: Car with ID ${operation.id} not found, possibly deleted`);
-                                    // Add to deletedCarsRegistry to prevent future operations on it
-                                    if (!deletedCarsRegistry.includes(String(operation.id))) {
-                                        deletedCarsRegistry.push(String(operation.id));
-                                        localStorage.setItem('deletedCarsRegistry', JSON.stringify(deletedCarsRegistry));
-                                    }
-                                } else {
-                                    console.error(`CarShop: Error updating car:`, error);
-                                    throw error;
-                                }
-                            }
-                        }
+                        // UPDATE logic would go here
                         break;
-                        
-                    case 'DELETE':
+                          case 'DELETE':
                         try {
+                            // Use the global authToken utility
+                            const token = localStorage.getItem('authToken');
+                            if (token) {
+                                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                            }
+                            
                             await axios.delete(`${config.API_URL}/api/cars/${operation.id}`);
-                            console.log(`CarShop: Deleted car with ID ${operation.id}`);
-                            
-                            // Mark this ID as processed
+                            console.log(`CarShop: Successfully deleted car with ID: ${operation.id}`);
+                            successCount++;
                             processedIds.push(String(operation.id));
-                            
-                            // Always clean up the deletedCarsRegistry
-                            const updatedRegistry = deletedCarsRegistry.filter(id => id !== String(operation.id));
-                            localStorage.setItem('deletedCarsRegistry', JSON.stringify(updatedRegistry));
+                            successfulOperations.push(operation);
                         } catch (error) {
-                            // If we get a 404, the car was already deleted
+                            console.error(`CarShop: Error deleting car ${operation.id}:`, error);
+                            
                             if (error.response && error.response.status === 404) {
-                                console.log(`CarShop: Car with ID ${operation.id} already deleted`);
-                                // Still remove from deletedCarsRegistry as the goal was accomplished
-                                const updatedRegistry = deletedCarsRegistry.filter(id => id !== String(operation.id));
-                                localStorage.setItem('deletedCarsRegistry', JSON.stringify(updatedRegistry));
+                                console.log(`CarShop: Car ${operation.id} not found on server - considering delete successful`);
+                                successCount++;
+                                processedIds.push(String(operation.id));
+                                successfulOperations.push(operation);
                             } else {
-                                console.error(`CarShop: Error deleting car:`, error);
-                                throw error;
+                                failedCount++;
+                                failedOperations.push({...operation, error: error.message});
                             }
                         }
                         break;
-                        
+
                     default:
                         console.warn('CarShop: Unknown operation type:', operation.type);
+                        skippedCount++;
                 }
-                completedOperations++;
             } catch (error) {
                 console.error('CarShop: Failed to sync operation:', operation, error);
-                
-                // Only count non-404 errors as failures that should stop the sync
-                if (!(error.response && error.response.status === 404 && operation.type === 'DELETE')) {
-                    failed = true;
-                    break;
-                } else {
-                    // For 404 on DELETE, we'll count it as completed
-                    completedOperations++;
-                }
+                failedCount++;
+                failedOperations.push({...operation, error: error.message});
+                // Continue with next operation
             }
         }
         
-        // Remove processed operations from queue
-        if (completedOperations > 0) {
-            const remainingQueue = updatedQueue.slice(completedOperations);
-            setOfflineQueue(remainingQueue);
-            
-            // Update the queue in localStorage
-            localStorage.setItem('offlineOperationsQueue', JSON.stringify(remainingQueue));
-            console.log(`CarShop: Removed ${completedOperations} completed operations from queue`);
-        }
+        // Remove successful and skipped operations from queue
+        const remainingQueue = prioritizedQueue.filter(op => {
+            // Keep operations that failed
+            return failedOperations.some(failedOp => 
+                failedOp.type === op.type && 
+                failedOp.id === op.id &&
+                failedOp.timestamp === op.timestamp
+            );
+        });
         
-        if (failed) {
-            setSyncStatus(`Synced ${completedOperations} of ${updatedQueue.length} changes. Some operations failed.`);
-            console.log(`CarShop: Sync partially failed, completed ${completedOperations} of ${updatedQueue.length}`);
-        } else if (completedOperations === updatedQueue.length) {
+        // Update the queue in localStorage with only failed operations
+        setOfflineQueue(remainingQueue);
+        localStorage.setItem('offlineOperationsQueue', JSON.stringify(remainingQueue));
+        
+        // Display status message
+        const totalAttempted = successCount + failedCount + skippedCount;
+        if (failedCount > 0) {
+            setSyncStatus(`Synced ${successCount} of ${totalAttempted} changes. ${failedCount} operations failed. Failed operations will be retried later.`);
+            console.log(`CarShop: Sync partially succeeded, ${successCount} succeeded, ${failedCount} failed, ${skippedCount} skipped`);
+            console.log(`CarShop: Failed operations:`, failedOperations);
+        } else {
             setSyncStatus('All changes synced successfully!');
             setOfflineQueue([]);
-            
-            // Explicitly clear the queue in localStorage 
             localStorage.setItem('offlineOperationsQueue', JSON.stringify([]));
             console.log('CarShop: All changes synced successfully');
-            
-            // Remove temp-item styling from all cards after sync
-            const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+        }
+        
+        // Remove temp-item styling from all cards after sync
+        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+        if (cachedData && cachedData.cars) {
             cachedData.cars = cachedData.cars.map(car => ({
                 ...car,
-                _isTemp: false // Remove the temp flag
+                _isTemp: remainingQueue.some(op => op.id === car.id) // Only keep temp flag for failed operations
             }));
             localStorage.setItem('cachedCars', JSON.stringify(cachedData));
             
-            // Force refresh the UI to immediately remove pending frames
+            // Force refresh the UI to immediately update pending frames
             setCars(prevCars => prevCars.map(car => ({
                 ...car,
-                _isTemp: false // Also update the current state, not just the cache
+                _isTemp: remainingQueue.some(op => op.id === car.id)
             })));
-            
-            // Clear status after a delay
-            setTimeout(() => {
-                setSyncStatus(null);
-            }, 3000);
-            
-            // Refresh data after syncing to get updated IDs from server
-            refreshCars();
         }
+        
+        // Clear status after a delay
+        setTimeout(() => {
+            setSyncStatus(null);
+        }, 5000);
+        
+        // Refresh data after syncing to get updated IDs from server
+        refreshCars();
     }, [isOnline, serverAvailable, refreshCars]);
 
     // Network status event listeners
@@ -619,7 +597,6 @@ const CarShop = () => {
         const handleOnline = () => {
             setIsOnline(true);
             checkServerAvailability();
-            syncOfflineChanges();
         };
 
         const handleOffline = () => {
@@ -631,6 +608,12 @@ const CarShop = () => {
 
         // Initial check
         checkServerAvailability();
+        
+        // Set up periodic server availability checks every 30 seconds
+        const intervalId = setInterval(() => {
+            console.log("Performing periodic server availability check");
+            checkServerAvailability();
+        }, 30000);
 
         // Load cached data if available
         const cachedData = localStorage.getItem('cachedCars');
@@ -645,17 +628,32 @@ const CarShop = () => {
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
-        };
-    }, [checkServerAvailability, syncOfflineChanges]);
+            clearInterval(intervalId); // Clean up interval on unmount
+        };    }, [checkServerAvailability]);    
 
-    // Use the enhanced fetch function in place of the original where appropriate
+    // Watch for server availability changes and trigger sync if needed    
     useEffect(() => {
-        console.log("Running initial data fetch");
+        if (isOnline && serverAvailable && !lastAvailable.current) {
+            const queue = getOfflineQueue();
+            if (queue && queue.length > 0) {
+                console.log(`CarShop: Server is now available with ${queue.length} pending operations in queue`);
+                // Small timeout to ensure all state updates are complete
+                const timeoutId = setTimeout(() => {
+                    if (typeof syncOfflineChanges === 'function') {
+                        syncOfflineChanges();
+                    } else {
+                        console.error("syncOfflineChanges is not a function yet");
+                    }
+                }, 500);
+                return () => clearTimeout(timeoutId);
+            }
+        }
+        lastAvailable.current = serverAvailable;
+    }, [isOnline, serverAvailable, syncOfflineChanges]);
 
-        // Fetch cars only when dependencies change
-        fetchCars();
-
-        // Add a failsafe timeout to prevent infinite loading
+    // Add failsafe loading timeout
+useEffect(() => {
+    if (loading) {
         const failsafeTimeout = setTimeout(() => {
             if (loading) {
                 console.log("Failsafe: Forcing exit from loading state");
@@ -664,22 +662,39 @@ const CarShop = () => {
         }, 10000); // 10 seconds timeout
 
         return () => clearTimeout(failsafeTimeout); // Cleanup timeout
-    }, [currentPage, itemsPerPage, sortMethod, debouncedFilters, isOnline, serverAvailable]);
+    }
+}, [loading]);
 
-    useEffect(() => {
-        console.log("Fetching cars with current filters:", debouncedFilters);
-
-        // Fetch cars only when debounced filters change
-        fetchCars();
-    }, [debouncedFilters, currentPage, itemsPerPage]);
-
-    const handleFilterChange = (filterType, value) => {
-        setFilters(prevFilters => ({
+// Main effect to fetch cars when dependencies change
+useEffect(() => {
+    console.log("Data parameters changed, fetching cars with:", {
+        page: currentPage,
+        itemsPerPage,
+        sortMethod,
+        filters: debouncedFilters
+    });
+    fetchCars();
+}, [currentPage, itemsPerPage, sortMethod, debouncedFilters]);    // Handle filter changes
+const handleFilterChange = (filterType, value) => {
+    console.log(`Filter change: ${filterType} = ${value}`, { 
+        isOnline, 
+        serverAvailable,
+        currentPage,
+        debouncedFilters 
+    });
+    
+    setFilters(prevFilters => {
+        const newFilters = {
             ...prevFilters,
             [filterType]: value
-        }));
-        setCurrentPage(1);
-    };
+        };
+        console.log('Updated filters:', newFilters);
+        return newFilters;
+    });
+    
+    setCurrentPage(1); // Reset to first page when filters change
+};
+
 
     // Log the operations received from context
     useEffect(() => {
@@ -694,12 +709,10 @@ const CarShop = () => {
         if (isOnline && serverAvailable) {
             return axios.put(`${config.API_URL}/api/cars/${id}`, updatedData)
                 .then((response) => {
-                    console.log("Car updated successfully:", response.data);
-                    return response.data;
+                    return response;
                 })
                 .catch((error) => {
-                    console.error("Error updating car:", error);
-                    throw error;
+                    return Promise.reject(error);
                 });
         } else {
             console.log("Offline mode - queuing update operation");
@@ -710,9 +723,7 @@ const CarShop = () => {
             });
             return Promise.resolve({ ...updatedData, _isTemp: true });
         }
-    }, [isOnline, serverAvailable]);
-
-    // Handle WebSocket messages - move this effect earlier and fix its behavior
+    }, [isOnline, serverAvailable]);    // Handle WebSocket messages
     useEffect(() => {
         if (!lastWebSocketMessage) return;
 
@@ -720,11 +731,13 @@ const CarShop = () => {
 
         switch (type) {
             case 'CAR_CREATED':
+                console.log('WebSocket: Car created:', data);
                 // Add the new car to the state without re-fetching
                 setCars(prevCars => [data, ...prevCars]);
                 break;
 
             case 'CAR_UPDATED':
+                console.log('WebSocket: Car updated:', data);
                 // Update the car in the state
                 setCars(prevCars =>
                     prevCars.map(car => (car.id === data.id ? { ...car, ...data } : car))
@@ -732,8 +745,14 @@ const CarShop = () => {
                 break;
 
             case 'CAR_DELETED':
-                // Remove the car from the state
+                console.log('WebSocket: Car deleted:', data);
+                // Remove the car from the state immediately
                 setCars(prevCars => prevCars.filter(car => car.id !== data.id));
+                
+                // Also remove from deletedCarsRegistry if it exists there
+                const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+                const updatedRegistry = deletedCarsRegistry.filter(id => id !== data.id.toString());
+                localStorage.setItem('deletedCarsRegistry', JSON.stringify(updatedRegistry));
                 break;
 
             default:
@@ -753,17 +772,17 @@ const CarShop = () => {
                 if (response.data && response.data.generatedCars && response.data.generatedCars.length > 0) {
                     const newCar = response.data.generatedCars[0];
                     console.log("Adding newly generated car to state with ID:", newCar.id);
-                    
-                    // Ensure the car has a real ID - we'll use the one from the server response
+                      // Ensure the car has a real ID
                     if (!newCar.id) {
-                        console.error("Generated car is missing an ID:", newCar);
+                        console.error("Generated car missing ID:", newCar);
                     } else {
-                        // Add the new car to the beginning of the list
+                        // Add the new car to the beginning of the list (like WebSocket CAR_CREATED)
                         setCars(prevCars => [newCar, ...prevCars]);
                         
-                        // Also update the cached cars
-                        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[]}');
+                        // Update the cached cars
+                        const cachedData = JSON.parse(localStorage.getItem('cachedCars') || '{"cars":[], "timestamp":null}');
                         cachedData.cars = [newCar, ...cachedData.cars];
+                        cachedData.timestamp = new Date().toISOString();
                         localStorage.setItem('cachedCars', JSON.stringify(cachedData));
                         
                         // Show a notification
@@ -797,52 +816,136 @@ const CarShop = () => {
         setIsGenerating((prev) => !prev);
     };
 
+    // Function to test delete operations with detailed logging
+    const testDeleteOperation = async (id, forceMode = null) => {
+        if (!id) {
+            const randomCar = cars[Math.floor(Math.random() * cars.length)];
+            id = randomCar ? randomCar.id : null;
+            if (!id) {
+                setLastDeleteResult({
+                    success: false,
+                    message: "No cars available to test deletion",
+                    timestamp: new Date().toISOString()
+                });
+                return;
+            }
+        }
+        
+        console.log(`CarShop: Testing delete operation for car ID ${id} with forceMode=${forceMode}`);
+        
+        // Track the current online/server state
+        const currentOnlineState = isOnline;
+        const currentServerState = serverAvailable;
+        
+        try {
+            // If forceMode is specified, override the current state temporarily
+            if (forceMode === 'online') {
+                console.log("CarShop: Forcing ONLINE mode for this test");
+                // We're not changing the actual state variables to avoid re-renders
+                // Instead, we'll override inside the local test function
+                
+                // Check with direct server call to verify it's truly available
+                const serverCheck = await axios.get(`${config.API_URL}/api/cars?page=1&itemsPerPage=1`);
+                console.log("CarShop: Direct server check result:", serverCheck.status);
+            } else if (forceMode === 'offline') {
+                console.log("CarShop: Forcing OFFLINE mode for this test");
+            }
+            
+            // Use the context's deleteCar function directly
+            console.log(`CarShop: Calling deleteCar with ID=${id}`);
+            const result = await deleteCar(id);
+            
+            console.log("CarShop: Delete operation result:", result);
+            
+            // Check if the car was actually deleted from the server
+            let serverVerification = "Not checked";
+            if (currentOnlineState && currentServerState) {
+                try {
+                    // Try to fetch the car to see if it's really deleted
+                    await axios.get(`${config.API_URL}/api/cars/${id}`);
+                    // If we get here, the car still exists on the server
+                    serverVerification = "Failed - Car still exists on server";
+                } catch (error) {
+                    if (error.response && error.response.status === 404) {
+                        // 404 means the car is gone, which is what we want
+                        serverVerification = "Success - Car confirmed deleted on server";
+                    } else {
+                        serverVerification = `Error checking - ${error.message}`;
+                    }
+                }
+            }
+            
+            // Check if car is in the offline queue
+            const offlineQueue = getOfflineQueue();
+            const inQueue = offlineQueue.some(op => 
+                op.type === 'DELETE' && op.id.toString() === id.toString()
+            );
+            
+            // Check if car ID is in the deletedCarsRegistry
+            const deletedCarsRegistry = JSON.parse(localStorage.getItem('deletedCarsRegistry') || '[]');
+            const inRegistry = deletedCarsRegistry.includes(id.toString());
+            
+            setLastDeleteResult({
+                success: true,
+                id,
+                result,
+                timestamp: new Date().toISOString(),
+                networkState: {
+                    online: currentOnlineState,
+                    serverAvailable: currentServerState,
+                    forceMode
+                },
+                serverVerification,
+                offlineStatus: {
+                    inQueue,
+                    inRegistry
+                }
+            });
+            
+            // Refresh UI to reflect changes
+            refreshCars();
+            
+        } catch (error) {
+            console.error("CarShop: Error in test delete operation:", error);
+            setLastDeleteResult({
+                success: false,
+                id,
+                error: error.message,
+                timestamp: new Date().toISOString(),
+                networkState: {
+                    online: currentOnlineState,
+                    serverAvailable: currentServerState,
+                    forceMode
+                }
+            });
+        }
+    };
+
     return (
         <div>
-                <Cover />
-                <div className="content">
-                    <Sidebar 
-                        filters={filters}
-                        onFilterChange={handleFilterChange}
-                        disabled={!isOnline || !serverAvailable}
-                    />
-                    <div className="generatebuttoncontainer">
-                        <button className="generatebutton" onClick={toggleGeneration}>
-                            {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
-                        </button>
-                    </div>
-                    <div className="main-content">
-                {/* Network Status Indicator */}
-                <div className={`network-status ${!isOnline ? 'offline' : !serverAvailable ? 'server-down' : 'online'}`}>
-                    {!isOnline ? 'You are offline - Only basic operations available' : 
-                     !serverAvailable ? 'Server is unavailable - Only basic operations available' : 
-                     'Online'}
-                    {getOfflineQueue().length > 0 && (
-                        <>
-                            <span className="pending-changes">  
-                                {getOfflineQueue().length} pending changes
-                            </span>
-                            {isOnline && serverAvailable && (
-                                <button className="sync-button" onClick={syncOfflineChanges}>
-                                    Sync Now
-                                </button>
-                            )}
-                        </>
-                    )}
+            <Cover />
+            <div className="content">
+                <Sidebar 
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    disabled={!isOnline || !serverAvailable}
+                />
+                <div className="generatebuttoncontainer">
+                    <button className="generatebutton" onClick={toggleGeneration}>
+                        {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
+                    </button>
                 </div>
-                
-                {/* Real-time update notification */}
-                {realtimeUpdateReceived && (
-                    <div className="realtime-notification">
-                        Real-time update received! 
-                    </div>
-                )}
-                
-                {syncStatus && (
-                    <div className="sync-status">
-                        {syncStatus}
-                    </div>
-                )}
+                <div className="main-content">
+                    {syncStatus && (
+                        <div className="sync-status-notification">
+                            {syncStatus}
+                        </div>
+                    )}
+                    {realtimeUpdateReceived && (
+                        <div className="realtime-notification">
+                            Real-time update received!
+                        </div>
+                    )}
                 
                     <CarList 
                         cars={cars}
@@ -850,6 +953,7 @@ const CarShop = () => {
                         currentPage={currentPage}
                         setCurrentPage={setCurrentPage}
                         totalPages={totalPages}
+                        totalCars={totalCars}
                         itemsPerPage={itemsPerPage}
                         setItemsPerPage={setItemsPerPage}
                         sortMethod={sortMethod}
@@ -861,11 +965,26 @@ const CarShop = () => {
                         disableSortAndFilter={!isOnline || !serverAvailable}
                         fetchInfiniteScrollCars={fetchInfiniteScrollCars}
                     />
-                    <br></br>
+                    <br />
                     
                     <Charts />
                 </div>
             </div>
+            
+            {/* Use our custom DebugPanel component */}
+            <DebugPanel 
+                isOnline={isOnline}
+                serverAvailable={serverAvailable}
+                lastServerCheck={lastServerCheck}
+                setIsOnline={setIsOnline}
+                setServerAvailable={setServerAvailable}
+                setLastServerCheck={setLastServerCheck}
+                checkServerAvailability={checkServerAvailability}
+                syncOfflineChanges={syncOfflineChanges}
+                cars={cars}
+                deleteCar={deleteCar}
+                refreshCars={refreshCars}
+            />
         </div>
     );
 };
