@@ -8,12 +8,13 @@ import './SessionHandler.css';
  * and handle expiration gracefully with a 10-minute inactivity timeout
  */
 const SessionHandler = () => {
-  const { checkTokenValidity, logout } = useAuth();
+  const { checkTokenValidity, logout, currentUser } = useAuth();
   const navigate = useNavigate();
   const [showWarning, setShowWarning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(60);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [userActivity, setUserActivity] = useState(Date.now());
+  const [isActive, setIsActive] = useState(true); // Track if component should be active
   
   // Track user activity
   useEffect(() => {
@@ -33,29 +34,40 @@ const SessionHandler = () => {
       window.removeEventListener('scroll', resetUserActivity);
     };
   }, []);
-  
-  // Check token validity periodically and monitor user inactivity
+    // Check token validity periodically and monitor user inactivity
   useEffect(() => {
-    // Don't run initial check immediately - wait for the first interval check
+    // Only run if user is logged in
+    if (!currentUser) {
+      setIsActive(false);
+      return;
+    }
+    
+    setIsActive(true);
     
     // Schedule periodic checks - now set to 10 minutes (600,000 ms)
     const interval = setInterval(async () => {
-      // Check inactivity time
+      // Skip if user is not logged in or component is inactive
+      if (!currentUser || !isActive) return;
+        // Check inactivity time
       const inactiveTime = Date.now() - userActivity;
       const inactivityLimit = 10 * 60 * 1000; // 10 minutes
       
       // Only show warning if user has been inactive for the threshold time
       // AND the token is still valid
       if (inactiveTime >= inactivityLimit) {
-        const isTokenValid = await checkTokenValidity();
-        if (isTokenValid) {
-          setShowWarning(true);
+        try {
+          const isTokenValid = await checkTokenValidity();
+          if (isTokenValid && currentUser) {
+            setShowWarning(true);
+          }
+        } catch (error) {
+          console.error('Error checking token validity:', error);
         }
       }
     }, 60 * 1000); // Check every minute
     
     return () => clearInterval(interval);
-  }, [checkTokenValidity, userActivity]);
+  }, [checkTokenValidity, userActivity, currentUser, isActive]);
     // If session is about to expire, show warning
   useEffect(() => {
     if (showWarning) {
@@ -81,19 +93,28 @@ const SessionHandler = () => {
       return () => clearInterval(warningInterval);
     }
   }, [showWarning, logout, navigate]);
-    // Renew session
+  // Renew session
   const renewSession = async () => {
-    // Reset the user activity timestamp
-    setUserActivity(Date.now());
-    
-    // Check if token is still valid
-    const isValid = await checkTokenValidity();
-    if (isValid) {
-      // Hide warning and reset timer
-      setShowWarning(false);
-      setTimeRemaining(60);
-    } else {
-      // If token is no longer valid, show expired message
+    try {
+      // Reset the user activity timestamp
+      setUserActivity(Date.now());
+      
+      // Check if token is still valid
+      const isValid = await checkTokenValidity();
+      if (isValid) {
+        // Hide warning and reset timer
+        setShowWarning(false);
+        setTimeRemaining(60);
+      } else {
+        // If token is no longer valid, show expired message
+        setSessionExpired(true);
+        setTimeout(() => {
+          logout();
+          navigate('/login');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error renewing session:', error);
       setSessionExpired(true);
       setTimeout(() => {
         logout();
@@ -101,6 +122,11 @@ const SessionHandler = () => {
       }, 2000);
     }
   };
+  
+  // Don't render anything if user is not logged in
+  if (!currentUser || !isActive) {
+    return null;
+  }
   
   if (sessionExpired) {
     return (

@@ -82,10 +82,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false, // Changed to false for better security
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 15 // 15 minutes
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours to match JWT token expiry
+        httpOnly: true // Added for security
     }
 }));
 

@@ -678,7 +678,7 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
             <CarOperationsContext.Provider value={carOperations}>
                 <BrandOperationsProvider>                    <Router>
                         <Navbar wsStatus={wsConnectionStatus} />
-                        {/* SessionHandler removed to prevent constant session expiration warnings */}
+                        <SessionHandler />
                         <Routes>
                             <Route path="/" element={<CarShop />} />
                             <Route path="/cars/:id" element={<CarDetail />} />
