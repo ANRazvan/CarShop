@@ -372,16 +372,15 @@ const getCarById = async (req, res) => {
         as: 'brand'
       }
     ];
-    
-    // Conditionally add User to the include array
-    // if (User) {
-    //   include.push({
-    //     model: User,
-    //     as: 'owner',
-    //     attributes: ['id', 'username', 'role'],
-    //     required: false // Make this a left join so cars without owners still show up
-    //   });
-    // }
+      // Conditionally add User to the include array
+    if (User) {
+      include.push({
+        model: User,
+        as: 'owner',
+        attributes: ['id', 'username', 'role'],
+        required: false // Make this a left join so cars without owners still show up
+      });
+    }
     
     const car = await Car.findByPk(carId, { include });
     

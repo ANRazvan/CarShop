@@ -232,12 +232,16 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                             >
                                 Cars 
                                 <span className="dropdown-arrow">▼</span>
-                            </button>
-                            {activeDropdown === 'cars' && (
+                            </button>                            {activeDropdown === 'cars' && (
                                 <div className="dropdown-menu">
                                     <Link to="/" className="dropdown-item" onClick={handleMenuItemClick}>
                                         View All Cars
                                     </Link>
+                                    {isAuthenticated() && (
+                                        <Link to="/my-cars" className="dropdown-item" onClick={handleMenuItemClick}>
+                                            My Cars
+                                        </Link>
+                                    )}
                                     <Link to="/addcar" className="dropdown-item" onClick={handleMenuItemClick}>
                                         Add New Car
                                     </Link>
