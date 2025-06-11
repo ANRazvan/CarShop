@@ -4,6 +4,7 @@ import { faker } from '@faker-js/faker';
 import Chart from 'chart.js/auto';
 import axios from 'axios';
 import './Charts.css'; // Import the Charts CSS
+import config from './config.js';
 
 const Charts = () => {
   const [cars, setCars] = useState([]); // State to store cars from the server
@@ -16,7 +17,7 @@ const Charts = () => {
   // Fetch cars from the server 
   useEffect(() => {
     axios
-      .get('http://localhost:5000/api/cars')
+      .get(`${config.API_URL}/api/cars`)
       .then((response) => {
         const carsData = response.data.cars || [];
         setCars(carsData);
@@ -73,7 +74,7 @@ const Charts = () => {
     };
 
     axios
-      .post('http://localhost:5000/api/cars', newCar)
+      .post(`${config.API_URL}/api/cars`, newCar)
       .then((response) => {
         const updatedCars = [...cars, response.data];
         setCars(updatedCars);
@@ -90,7 +91,7 @@ const Charts = () => {
     if (isGenerating && availableImages.length > 0) {
       interval = setInterval(() => {
         generateCar();
-      }, 2000); // Generate a new car every 2 seconds
+      }, 5000); // Generate a new car every 2 seconds
     }
 
     return () => clearInterval(interval);
@@ -169,13 +170,6 @@ const Charts = () => {
   return (
     <div>
       <h2>Real-Time Charts</h2>
-      <div className="generatebuttoncontainer">
-        <button className="generatebutton" onClick={toggleGeneration}>
-          {isGenerating ? 'Stop Generating Cars' : 'Start Generating Cars'}
-        </button>
-        <div className="image-info">
-        </div>
-      </div>
       <div className="chart-container">
         <div className="chart">
           <Line data={lineChartData} />
