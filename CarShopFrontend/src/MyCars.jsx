@@ -31,8 +31,8 @@ const MyCars = () => {
             try {
                 setLoading(true);
                 const token = getAuthToken();
-                console.log('MyCars: Token retrieved:', token ? 'Present' : 'Missing');                console.log('MyCars: Making request to:', `${config.API_URL}/api/cars/mycars`);
-                const response = await axios.get(`${config.API_URL}/api/cars/mycars`, {
+                console.log('MyCars: Token retrieved:', token ? 'Present' : 'Missing');                console.log('MyCars: Making request to:', `${config.API_URL}/api/cars/my-cars`);
+                const response = await axios.get(`${config.API_URL}/api/cars/my-cars`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
