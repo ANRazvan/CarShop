@@ -26,6 +26,7 @@ import SessionHandler from './SessionHandler.jsx';
 import Security from './Security.jsx';
 // Import database performance component
 import IndexPerformance from './IndexPerformance.jsx';
+import AIChatWidget from './AIChatWidget.jsx';
 import config from "./config.js";
 import { getAuthToken, setAuthToken, initializeAuth } from './utils/authToken';
 
@@ -686,7 +687,7 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
                             <Route path="/CarDetail/:id" element={<CarDetail />} />
                             <Route path="/AddCar" element={<AddCar />} />
                             <Route path="/UpdateCar/:id" element={<UpdateCar />} />
-                            <Route path="/my-cars" element={<MyCars />} />
+                            <Route path="/mycars" element={<MyCars />} />
                             
                             {/* Brand routes */}
                             <Route path="/brands" element={<BrandList />} />
@@ -699,11 +700,12 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
                               {/* Authentication and User Monitoring routes */}
                             <Route path="/login" element={<Login />} />
                             <Route path="/user-monitor" element={<UserMonitor />} />
-                            <Route path="/security" element={<Security />} />
-                        </Routes>   
+                            <Route path="/security" element={<Security />} />                        </Routes>   
                         <Footer />
                         {/* Authentication Debug Panel */}
                         <AuthDebug />
+                        {/* AI Chat Widget */}
+                        <AIChatWidget />
                     </Router>
                 </BrandOperationsProvider>
             </CarOperationsContext.Provider>

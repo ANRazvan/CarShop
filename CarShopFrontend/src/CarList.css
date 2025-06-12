@@ -353,7 +353,7 @@ body {
 }
 
 /* My Cars specific styles */
-.my-cars-header {
+.mycars-header {
     text-align: center;
     padding: 20px;
     margin-bottom: 20px;
@@ -362,13 +362,13 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.my-cars-header h1 {
+.mycars-header h1 {
     color: #333;
     margin-bottom: 10px;
     font-size: 2.5rem;
 }
 
-.my-cars-header p {
+.mycars-header p {
     color: #666;
     font-size: 1.1rem;
     margin: 5px 0;

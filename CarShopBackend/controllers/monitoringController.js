@@ -1,6 +1,4 @@
-const MonitoredUser = require('../models/MonitoredUser');
-const UserLog = require('../models/UserLog');
-const User = require('../models/User');
+const { MonitoredUser, UserLog, User } = require('../models');
 const { Op } = require('sequelize');
 
 // Get all monitored users - admin only

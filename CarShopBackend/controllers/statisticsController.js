@@ -1,8 +1,6 @@
 // Statistics controller for optimized queries on large datasets
-const  sequelize  = require('../config/database');
+const { Car, Brand, sequelize } = require('../models');
 const { Op } = require('sequelize');
-const Car = require('../models/Car');
-const Brand = require('../models/Brand');
 const { promisify } = require('util');
 const redis = require('redis');
 

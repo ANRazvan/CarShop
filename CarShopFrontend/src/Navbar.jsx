@@ -238,7 +238,7 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                         View All Cars
                                     </Link>
                                     {isAuthenticated() && (
-                                        <Link to="/my-cars" className="dropdown-item" onClick={handleMenuItemClick}>
+                                        <Link to="/mycars" className="dropdown-item" onClick={handleMenuItemClick}>
                                             My Cars
                                         </Link>
                                     )}
