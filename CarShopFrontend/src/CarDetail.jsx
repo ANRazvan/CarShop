@@ -4,6 +4,8 @@ import axios from 'axios';
 import './CarDetail.css';
 import config from './config.js';
 import CarOperationsContext from './CarOperationsContext.jsx';
+import { useCart } from './CartContext';
+import { useAuth } from './hooks/useAuth';
 import { getDisplayUrl, validateImageUrl } from './utils/imageHelpers.js';
 
 const CarDetail = () => {
@@ -16,11 +18,14 @@ const CarDetail = () => {
     const [serverAvailable, setServerAvailable] = useState(true); // Server availability
     const [videoUploadProgress, setVideoUploadProgress] = useState(0); // For tracking upload progress
     const [isUploading, setIsUploading] = useState(false); // To show upload status
+    const [addingToCart, setAddingToCart] = useState(false); // Loading state for add to cart
     const fileInputRef = useRef(null); // Reference to file input
 
     // Get operations from context
     const operations = useContext(CarOperationsContext);
     const { deleteCar } = operations;
+    const { addToCart } = useCart();
+    const { isAuthenticated, currentUser } = useAuth();
 
     // Log what we received from context to debug
     useEffect(() => {
@@ -127,7 +132,32 @@ const CarDetail = () => {
             } catch (error) {
                 console.error("Exception during delete operation:", error);
                 alert("An unexpected error occurred while trying to delete the car.");
-            }
+            }        }
+    };
+
+    // Handle add to cart
+    const handleAddToCart = async () => {
+        if (!isAuthenticated()) {
+            alert('Please log in to add items to your cart');
+            navigate('/login');
+            return;
+        }
+
+        // Check if user is trying to add their own car
+        if (currentUser && car.userId === currentUser.id) {
+            alert('You cannot add your own car to the cart');
+            return;
+        }
+
+        try {
+            setAddingToCart(true);
+            await addToCart(car.id);
+            alert('Car added to cart successfully!');
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            alert(error.message || 'Failed to add car to cart');
+        } finally {
+            setAddingToCart(false);
         }
     };
 
@@ -265,12 +295,15 @@ const CarDetail = () => {
                     <h1 className="car-title">{car.make} {car.model}</h1>
                     <p className="car-subtitle">{car.keywords}</p>
                     <h2 className="price">${car.price}</h2>
-                    {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}
-                    <div className="button-group">
-                        <button className="add-to-cart">
-                        <i className="fas fa-shopping-cart" style={{marginRight: '8px'}}></i>
-                        Add to cart
-                    </button>
+                    {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}                    <div className="button-group">
+                        <button 
+                            className="add-to-cart" 
+                            onClick={handleAddToCart}
+                            disabled={addingToCart || !isAuthenticated() || (currentUser && car.userId === currentUser.id)}
+                        >
+                            <i className="fas fa-shopping-cart" style={{marginRight: '8px'}}></i>
+                            {addingToCart ? 'Adding...' : 'Add to cart'}
+                        </button>
                     <button className="delete" onClick={handleDelete}>
                         <i className="fas fa-trash" style={{marginRight: '8px'}}></i>
                         Delete

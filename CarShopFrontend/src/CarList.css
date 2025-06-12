@@ -400,6 +400,90 @@ body {
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
+/* Cart button styles */
+.cart-button {
+    background: #27ae60 !important;
+    color: white !important;
+    border: 1px solid #27ae60 !important;
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.cart-button:hover:not(:disabled) {
+    background: #229954 !important;
+    border-color: #229954 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3) !important;
+}
+
+.cart-button:disabled {
+    background: #95a5a6 !important;
+    border-color: #95a5a6 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+    transform: none !important;
+}
+
+.card-actions {
+    display: flex !important;
+    gap: 5px !important;
+    flex-wrap: wrap !important;
+    margin-top: 10px !important;
+}
+
+.card-actions button,
+.card-actions .view-button {
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 32px !important;
+}
+
+.view-button {
+    background: #3498db !important;
+    color: white !important;
+    border: 1px solid #3498db !important;
+}
+
+.view-button:hover {
+    background: #2980b9 !important;
+    border-color: #2980b9 !important;
+    color: white !important;
+}
+
+.edit-button {
+    background: #f39c12 !important;
+    color: white !important;
+    border: 1px solid #f39c12 !important;
+}
+
+.edit-button:hover:not(:disabled) {
+    background: #e67e22 !important;
+    border-color: #e67e22 !important;
+}
+
+.delete-button {
+    background: #e74c3c !important;
+    color: white !important;
+    border: 1px solid #e74c3c !important;
+}
+
+.delete-button:hover {
+    background: #c0392b !important;
+    border-color: #c0392b !important;
+}
+
 @media (max-width: 1200px) {
     .car-cards {
         grid-template-columns: repeat(3, 1fr); /* 3 columns on medium screens */

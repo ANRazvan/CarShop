@@ -9,6 +9,7 @@ import CarDetail from './CarDetail.jsx'
 import AddCar from "./AddCar.jsx";
 import UpdateCar from './UpdateCar.jsx';
 import MyCars from './MyCars.jsx';
+import Cart from './Cart.jsx';
 import CarOperationsContext from './CarOperationsContext.jsx';
 // Import brand-related components
 import BrandList from './BrandList.jsx';
@@ -21,6 +22,7 @@ import { BrandOperationsProvider } from './BrandOperationsContext.jsx';
 import Login from './Login.jsx';
 import UserMonitor from './UserMonitor.jsx';
 import { AuthProvider } from './AuthContext.jsx';
+import { CartProvider } from './CartContext.jsx';
 import AuthDebug from './AuthDebug.jsx';
 import SessionHandler from './SessionHandler.jsx';
 import Security from './Security.jsx';
@@ -677,38 +679,41 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
         websocketConnected: websocket.current?.readyState === WebSocket.OPEN
     });    return (
         <AuthProvider>
-            <CarOperationsContext.Provider value={carOperations}>
-                <BrandOperationsProvider>                    <Router>
-                        <Navbar wsStatus={wsConnectionStatus} />
-                        <SessionHandler />                        <Routes>
-                            <Route path="/" element={<CarShop />} />
-                            <Route path="/cars/:id" element={<CarDetail />} />
-                            {/* Add an additional route that matches /CarDetail/:id pattern */}
-                            <Route path="/CarDetail/:id" element={<CarDetail />} />
-                            <Route path="/AddCar" element={<AddCar />} />
-                            <Route path="/UpdateCar/:id" element={<UpdateCar />} />
-                            <Route path="/mycars" element={<MyCars />} />
-                            
-                            {/* Brand routes */}
-                            <Route path="/brands" element={<BrandList />} />
-                            <Route path="/brands/:id" element={<BrandDetail />} />
-                            <Route path="/add-brand" element={<AddBrand />} />
-                            <Route path="/brands/:id/edit" element={<UpdateBrand />} />
-                              {/* Statistics route */}
-                            <Route path="/statistics" element={<StatisticsPage />} />
-                            <Route path="/db-performance" element={<IndexPerformance />} />
-                              {/* Authentication and User Monitoring routes */}
-                            <Route path="/login" element={<Login />} />
-                            <Route path="/user-monitor" element={<UserMonitor />} />
-                            <Route path="/security" element={<Security />} />                        </Routes>   
-                        <Footer />
-                        {/* Authentication Debug Panel */}
-                        <AuthDebug />
-                        {/* AI Chat Widget */}
-                        <AIChatWidget />
-                    </Router>
-                </BrandOperationsProvider>
-            </CarOperationsContext.Provider>
+            <CartProvider>
+                <CarOperationsContext.Provider value={carOperations}>
+                    <BrandOperationsProvider>                    <Router>
+                            <Navbar wsStatus={wsConnectionStatus} />
+                            <SessionHandler />                        <Routes>
+                                <Route path="/" element={<CarShop />} />
+                                <Route path="/cars/:id" element={<CarDetail />} />
+                                {/* Add an additional route that matches /CarDetail/:id pattern */}
+                                <Route path="/CarDetail/:id" element={<CarDetail />} />
+                                <Route path="/AddCar" element={<AddCar />} />
+                                <Route path="/UpdateCar/:id" element={<UpdateCar />} />
+                                <Route path="/mycars" element={<MyCars />} />
+                                <Route path="/cart" element={<Cart />} />
+                                
+                                {/* Brand routes */}
+                                <Route path="/brands" element={<BrandList />} />
+                                <Route path="/brands/:id" element={<BrandDetail />} />
+                                <Route path="/add-brand" element={<AddBrand />} />
+                                <Route path="/brands/:id/edit" element={<UpdateBrand />} />
+                                  {/* Statistics route */}
+                                <Route path="/statistics" element={<StatisticsPage />} />
+                                <Route path="/db-performance" element={<IndexPerformance />} />
+                                  {/* Authentication and User Monitoring routes */}
+                                <Route path="/login" element={<Login />} />
+                                <Route path="/user-monitor" element={<UserMonitor />} />
+                                <Route path="/security" element={<Security />} />                        </Routes>   
+                            <Footer />
+                            {/* Authentication Debug Panel */}
+                            <AuthDebug />
+                            {/* AI Chat Widget */}
+                            <AIChatWidget />
+                        </Router>
+                    </BrandOperationsProvider>
+                </CarOperationsContext.Provider>
+            </CartProvider>
         </AuthProvider>
     );
 }

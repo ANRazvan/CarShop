@@ -5,6 +5,7 @@ import "./Navbar.css";
 import config from "./config.js";
 import axios from "axios";
 import { useAuth } from "./hooks/useAuth";
+import { useCart } from "./CartContext";
 
 // Helper function to get offline queue
 const getOfflineQueue = () => {
@@ -19,6 +20,7 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
     const [serverAvailable, setServerAvailable] = useState(true);
     const [syncStatus, setSyncStatus] = useState(null);
     const { currentUser, isAuthenticated, isAdmin, logout } = useAuth();
+    const { cartCount } = useCart();
     const navigate = useNavigate();
 
     // Check if server is available
@@ -289,10 +291,19 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                     Skip Changes
                                 </button>
                             </>
-                        )}
-                        {/* <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
+                        )}                        {/* <button className="restore-button" onClick={clearDeletedCarsRegistry} title="Restore any cars you've deleted locally">
                             Restore All Cars
                         </button> */}
+                        
+                        {/* Cart icon - Only show for authenticated users */}
+                        {isAuthenticated() && (
+                            <Link to="/cart" className="cart-link" title="Shopping Cart">
+                                <span className="cart-icon">🛒</span>
+                                {cartCount > 0 && (
+                                    <span className="cart-badge">{cartCount}</span>
+                                )}
+                            </Link>
+                        )}
                         
                         {/* Auth buttons */}
                         {isAuthenticated() ? (
