@@ -352,6 +352,54 @@ body {
     font-size: 1.5rem;
 }
 
+/* My Cars specific styles */
+.mycars-header {
+    text-align: center;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mycars-header h1 {
+    color: #333;
+    margin-bottom: 10px;
+    font-size: 2.5rem;
+}
+
+.mycars-header p {
+    color: #666;
+    font-size: 1.1rem;
+    margin: 5px 0;
+}
+
+.cars-count {
+    color: #007bff !important;
+    font-weight: 600;
+}
+
+.add-car-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 15px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.add-car-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
 @media (max-width: 1200px) {
     .car-cards {
         grid-template-columns: repeat(3, 1fr); /* 3 columns on medium screens */

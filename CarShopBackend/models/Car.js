@@ -1,8 +1,5 @@
-const { DataTypes } = require('sequelize');
-const  sequelize  = require('../config/database');
-
-
-const Car = sequelize.define('Car', {
+module.exports = (sequelize, DataTypes) => {
+    const Car = sequelize.define('Car', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -62,4 +59,20 @@ const Car = sequelize.define('Car', {
   timestamps: true
 });
 
-module.exports = Car;
+    // Define associations
+    Car.associate = function(models) {
+      // Car belongs to one Brand
+      Car.belongsTo(models.Brand, { 
+        foreignKey: 'brandId',
+        as: 'brand'
+      });
+      
+      // Car belongs to a User (owner)
+      Car.belongsTo(models.User, {
+        foreignKey: 'userId',
+        as: 'owner'
+      });
+    };
+
+    return Car;
+};

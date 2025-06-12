@@ -8,11 +8,10 @@ const http = require('http');
 const session = require('express-session');
 const app = express();
 const port = process.env.PORT || 5000;
-const setupAssociations = require('./models/associations');
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-setupAssociations();
+// Note: Associations are set up automatically by models/index.js
 
 // Initialize broadcast function
 app.locals.broadcast = (message) => {
@@ -98,6 +97,7 @@ const carRoutes = require('./routes/cars');
 const brandRoutes = require('./routes/brands');
 const statisticsRoutes = require('./routes/statistics');
 const authRoutes = require('./routes/auth');
+const chatRoutes = require('./routes/chat');
 const { handleMulterError, handleGenericErrors } = require('./middleware/errorHandlers');
 
 // Register routes
@@ -105,6 +105,7 @@ app.use('/api/cars', carRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

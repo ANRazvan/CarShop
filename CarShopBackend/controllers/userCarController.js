@@ -2,18 +2,28 @@
  * This controller adds secure user-based operation handling to the car controller.
  * It extends the existing functionality with user ownership checks.
  */
-const Car = require('../models/Car');
+const { Car, Brand, User } = require('../models');
 const { Op } = require('sequelize');
 
 // Get cars belonging to the current user
 exports.getMyCars = async (req, res) => {
   try {
+    console.log('getMyCars called for user:', req.user?.id);
+    
     const cars = await Car.findAll({
       where: {
         userId: req.user.id
-      }
+      },
+      include: [
+        {
+          model: Brand,
+          as: 'brand'
+        }
+      ],
+      order: [['createdAt', 'DESC']]
     });
     
+    console.log('Found cars for user:', cars.length);
     res.status(200).json(cars);
   } catch (error) {
     console.error('Error getting user cars:', error);

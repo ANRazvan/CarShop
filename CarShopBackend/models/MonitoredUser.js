@@ -1,7 +1,5 @@
-const { DataTypes } = require('sequelize');
-const  sequelize  = require('../config/database');
-
-const MonitoredUser = sequelize.define('MonitoredUser', {
+module.exports = (sequelize, DataTypes) => {
+    const MonitoredUser = sequelize.define('MonitoredUser', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -44,4 +42,14 @@ const MonitoredUser = sequelize.define('MonitoredUser', {
     timestamps: true
 });
 
-module.exports = MonitoredUser;
+    // Define associations
+    MonitoredUser.associate = function(models) {
+      // Monitored entry belongs to a User
+      MonitoredUser.belongsTo(models.User, {
+        foreignKey: 'userId',
+        as: 'user'
+      });
+    };
+
+    return MonitoredUser;
+};

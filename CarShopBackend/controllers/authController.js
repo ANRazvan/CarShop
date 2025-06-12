@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const User = require('../models/User');
-const UserLog = require('../models/UserLog');
+const { User, UserLog } = require('../models');
 const twoFactorService = require('../services/twoFactorService');
 
 // Ensure consistent JWT secret usage

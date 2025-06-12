@@ -1,7 +1,5 @@
-const { DataTypes } = require('sequelize');
-const  sequelize  = require('../config/database');
-
-const UserLog = sequelize.define('UserLog', {
+module.exports = (sequelize, DataTypes) => {
+    const UserLog = sequelize.define('UserLog', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -30,6 +28,16 @@ const UserLog = sequelize.define('UserLog', {
 }, {
     tableName: 'UserLogs', // Specify the exact table name with capitalization
     timestamps: true
-});
+    });
 
-module.exports = UserLog;
+    // Define associations
+    UserLog.associate = function(models) {
+      // Log belongs to a User
+      UserLog.belongsTo(models.User, {
+        foreignKey: 'userId',
+        as: 'user'
+      });
+    };
+
+    return UserLog;
+};
