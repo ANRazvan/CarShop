@@ -1,8 +1,7 @@
-const { DataTypes } = require('sequelize');
-const  sequelize  = require('../config/database');
 const bcrypt = require('bcryptjs');
 
-const User = sequelize.define('User', {
+module.exports = (sequelize, DataTypes) => {
+    const User = sequelize.define('User', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -87,8 +86,29 @@ User.prototype.validatePassword = async function(password) {
       stack: error.stack,
       name: error.name
     });
-    return false;
-  }
+    return false;  }
 };
 
-module.exports = User;
+// Define associations
+User.associate = function(models) {
+  // User has many Logs
+  User.hasMany(models.UserLog, {
+    foreignKey: 'userId',
+    as: 'logs'
+  });
+  
+  // User has many monitored entries
+      User.hasMany(models.MonitoredUser, {
+        foreignKey: 'userId',
+        as: 'monitoringEvents'
+      });
+      
+      // User has many Cars (owned cars)
+      User.hasMany(models.Car, {
+        foreignKey: 'userId',
+        as: 'ownedCars'
+      });
+    };
+
+    return User;
+};

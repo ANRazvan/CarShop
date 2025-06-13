@@ -1,8 +1,6 @@
 // filepath: CarShopBackend/controllers/brandController.js
 const { Op } = require('sequelize');
-const Brand = require('../models/Brand');
-const Car = require('../models/Car');
-const  sequelize  = require('../config/database'); // Add this import
+const { Brand, Car, sequelize } = require('../models');
 
 // Get all brands with optional filtering and sorting
 const getBrands = async (req, res) => {

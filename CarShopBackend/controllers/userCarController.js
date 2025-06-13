@@ -2,7 +2,7 @@
  * This controller adds secure user-based operation handling to the car controller.
  * It extends the existing functionality with user ownership checks.
  */
-const Car = require('../models/Car');
+const { Car } = require('../models');
 const { Op } = require('sequelize');
 
 // Get cars belonging to the current user

@@ -114,6 +114,9 @@ router.get('/debug/:id', async (req, res) => {
 // GET all cars with pagination and filtering - use the database controller
 router.get('/', getCars);
 
+// GET user's cars - requires authentication
+router.get('/mycars', authenticate, getMyCars);
+
 // GET car by ID - use the database controller
 router.get('/:id', getCarById);
 

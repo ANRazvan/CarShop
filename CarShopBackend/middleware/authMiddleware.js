@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const UserLog = require('../models/UserLog');
+const { UserLog } = require('../models');
 
 // Ensure consistent JWT secret usage
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -134,6 +134,36 @@ exports.logAction = (action, entityType) => {
     
     next();
   };
+};
+
+// Optional authentication middleware - doesn't require auth but provides user context when available
+exports.optionalAuth = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      console.log('Optional auth: No authorization header, continuing without user context');
+      return next();
+    }
+    
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      console.log('Optional auth: No token in authorization header, continuing without user context');
+      return next();
+    }
+    
+    console.log(`Optional auth: Verifying token: ${token.substring(0, 10)}...`);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    
+    console.log(`Optional auth: User ${decoded.id} (${decoded.username || decoded.email}) authenticated`);
+    
+    next();
+  } catch (error) {
+    console.log('Optional auth: Token verification failed, continuing without user context:', error.message);
+    // Don't fail the request, just continue without user context
+    next();
+  }
 };
 
 module.exports = exports;
