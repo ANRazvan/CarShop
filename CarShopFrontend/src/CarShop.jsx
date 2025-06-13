@@ -972,7 +972,7 @@ const handleFilterChange = (filterType, value) => {
             </div>
             
             {/* Use our custom DebugPanel component */}
-            <DebugPanel 
+            {/* <DebugPanel 
                 isOnline={isOnline}
                 serverAvailable={serverAvailable}
                 lastServerCheck={lastServerCheck}
@@ -984,7 +984,7 @@ const handleFilterChange = (filterType, value) => {
                 cars={cars}
                 deleteCar={deleteCar}
                 refreshCars={refreshCars}
-            />
+            /> */}
         </div>
     );
 };

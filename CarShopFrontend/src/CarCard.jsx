@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./CarList.css"; // Using the same CSS file as CarList
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import config from "./config.js";
 import { useCart } from "./CartContext";
 import { useAuth } from "./hooks/useAuth";
@@ -11,9 +11,14 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
   const [addingToCart, setAddingToCart] = useState(false);
   const { addToCart } = useCart();
   const { isAuthenticated, currentUser } = useAuth();
+  const navigate = useNavigate();
 
   // Display a placeholder image if the car image is not available
   const imageUrl = car.img || "/placeholder.jpeg";
+
+  const handleCardClick = () => {
+    navigate(`/cars/${car.id}`);
+  };
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -36,8 +41,9 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
   const handleDelete = () => {
     onDelete(car.id);
   };
-
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e) => {
+    e.stopPropagation(); // Prevent card click when clicking the button
+    
     if (!isAuthenticated()) {
       alert('Please log in to add items to your cart');
       return;
@@ -60,9 +66,12 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
       setAddingToCart(false);
     }
   };
-
   return (
-    <div className={`car-card ${car._isTemp ? "car-card-temp" : ""}`}>
+    <div 
+      className={`car-card ${car._isTemp ? "car-card-temp" : ""}`}
+      onClick={handleCardClick}
+      style={{ cursor: 'pointer' }}
+    >
       {isEditing ? (
         <div className="car-card-editing">
           <div className="edit-field">
@@ -126,13 +135,13 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
             <img src={imageUrl} alt={`${car.make} ${car.model}`} />
             {car._isTemp && <div className="temp-badge">Offline</div>}
           </div>
-          <div className="car-info">            <h3>{car.make} {car.model}</h3>
+          <div className="car-info">            
+            <h3>{car.make} {car.model}</h3>
             <p>Year: {car.year}</p>
             <p>Price: ${car.price?.toLocaleString()}</p>
             <p>Fuel Type: {car.fuelType}</p>
             {car.owner && <p className="car-owner">Owner: {car.owner.username}</p>}            
             <div className="card-actions">
-              <Link to={`/cars/${car.id}`} className="view-button">View Details</Link>
               {isAuthenticated() && currentUser?.id !== car.userId && (
                 <button 
                   onClick={handleAddToCart} 
@@ -143,8 +152,8 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
                   {addingToCart ? '⏳' : '🛒'} {addingToCart ? 'Adding...' : 'Add to Cart'}
                 </button>
               )}
-              <button onClick={handleEdit} className="edit-button" disabled={isOffline}>Edit</button>
-              <button onClick={handleDelete} className="delete-button">Delete</button>
+              {/* <button onClick={handleEdit} className="edit-button" disabled={isOffline}>Edit</button> */}
+              {/* <button onClick={handleDelete} className="delete-button">Delete</button> */}
             </div>
           </div>
         </>

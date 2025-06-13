@@ -12,10 +12,33 @@ const UpdateCar = () => {
     const { updateCar } = useContext(CarOperationsContext);
 
     const [car, setCar] = useState(null); // State to store car details
+    const [brands, setBrands] = useState([]); // State to store available brands
     const [errors, setErrors] = useState({}); // State for error messages
     const [loading, setLoading] = useState(true); // Loading state
     const [error, setError] = useState(null); // Error state
     const [isImageModified, setIsImageModified] = useState(false); // Track if image was modified
+
+    // Fetch brands when component loads
+    useEffect(() => {
+        axios.get(`${config.API_URL}/api/brands`)
+            .then(response => {
+                console.log("Fetched brands:", response.data);
+                // Extract the brands array from the response
+                if (response.data && response.data.brands) {
+                    setBrands(response.data.brands);
+                } else if (Array.isArray(response.data)) {
+                    // Handle case where API directly returns an array
+                    setBrands(response.data);
+                } else {
+                    console.error("Unexpected brands data format:", response.data);
+                    setBrands([]);
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching brands:", error);
+                setBrands([]);
+            });
+    }, []);
 
     useEffect(() => {
         const fetchCarDetails = async () => {
@@ -28,29 +51,39 @@ const UpdateCar = () => {
             if (cachedData) {
                 const parsed = JSON.parse(cachedData);
                 cachedCar = parsed.cars.find(c => c.id.toString() === id.toString());
-            }
-
-            // If online, try to get from server
+            }            // If online, try to get from server
             if (navigator.onLine) {
                 try {
                     const response = await axios.get(`${config.API_URL}/api/cars/${id}`);
-                    setCar(response.data);
+                    const carData = response.data;
+                    // Set brandId from the brand relationship if available
+                    if (carData.brand && carData.brand.id) {
+                        carData.brandId = carData.brand.id;
+                    }
+                    setCar(carData);
                     setLoading(false);
                 } catch (error) {
                     console.error("Error fetching car details from server:", error);
 
                     // If server is down but we have cached data, use it
                     if (cachedCar) {
+                        // Set brandId for cached car too
+                        if (cachedCar.brand && cachedCar.brand.id) {
+                            cachedCar.brandId = cachedCar.brand.id;
+                        }
                         setCar(cachedCar);
                         setLoading(false);
                     } else {
                         setError("Car not found");
                         setLoading(false);
                     }
-                }
-            } else {
+                }            } else {
                 // If offline and we have cached data, use it
                 if (cachedCar) {
+                    // Set brandId for cached car
+                    if (cachedCar.brand && cachedCar.brand.id) {
+                        cachedCar.brandId = cachedCar.brand.id;
+                    }
                     setCar(cachedCar);
                     setLoading(false);
                 } else {
@@ -68,18 +101,17 @@ const UpdateCar = () => {
                 revokeObjectUrl(URL.createObjectURL(car.img));
             }
         };
-    }, [id]);
-
-    const validateForm = () => {
+    }, [id]);    const validateForm = () => {
         let newErrors = {};
         
         // Validate required fields
-        if (!car.make?.trim()) newErrors.make = "Make is required.";
+        if (!car.brandId) newErrors.brandId = "Brand is required.";
         if (!car.model?.trim()) newErrors.model = "Model is required.";
         if (!car.year || car.year < 1886 || car.year > new Date().getFullYear())
             newErrors.year = "Enter a valid year.";
         if (!car.price || car.price <= 0) newErrors.price = "Enter a valid price.";
         if (!car.description?.trim()) newErrors.description = "Description is required.";
+        if (!car.fuelType) newErrors.fuelType = "Fuel type is required.";
         // Only validate img if it was removed (since we already have an image)
         if (isImageModified && !car.img) newErrors.img = "Image is required.";
 
@@ -125,23 +157,16 @@ const UpdateCar = () => {
     const handleSubmit = () => {
         if (!validateForm()) {
             return; // Don't proceed if validation fails
-        }
-
-        const formData = new FormData();
+        }        const formData = new FormData();
         
         // Append basic car details
-        formData.append("make", car.make);
+        formData.append("brandId", car.brandId);
         formData.append("model", car.model);
         formData.append("year", car.year);
         formData.append("keywords", car.keywords || "");
         formData.append("description", car.description);
         formData.append("fuelType", car.fuelType);
         formData.append("price", car.price);
-        
-        // Include original brandId if it exists
-        if (car.brandId) {
-            formData.append("brandId", car.brandId);
-        }
 
         // Handle image upload
         if (isImageModified && car.img instanceof File) {
@@ -153,11 +178,9 @@ const UpdateCar = () => {
             // The backend will know to keep the existing image
             formData.append("keepExistingImage", "true");
             console.log("Keeping existing image");
-        }
-
-        console.log("Submitting car update with form data:", {
+        }        console.log("Submitting car update with form data:", {
             id: car.id,
-            make: car.make,
+            brandId: car.brandId,
             model: car.model,
             hasImage: !!car.img,
             isNewImage: isImageModified && car.img instanceof File,
@@ -216,16 +239,21 @@ const UpdateCar = () => {
 
     return (
         <div className="add-car-container">
-            <h2>Update Car Details</h2>
-            <div className="input-group">
-                <input
-                    type="text"
-                    name="make"
-                    placeholder="Make"
-                    value={car.make || ""}
+            <h2>Update Car Details</h2>            <div className="input-group">
+                <select 
+                    name="brandId" 
+                    value={car.brandId || ""} 
                     onChange={handleChange}
-                />
-                {errors.make && <p className="error">{errors.make}</p>}
+                    className={errors.brandId ? "error-input" : ""}
+                >
+                    <option value="">Select Brand</option>
+                    {brands.map(brand => (
+                        <option key={brand.id} value={brand.id}>
+                            {brand.name}
+                        </option>
+                    ))}
+                </select>
+                {errors.brandId && <p className="error">{errors.brandId}</p>}
 
                 <input
                     type="text"
@@ -243,15 +271,19 @@ const UpdateCar = () => {
                     value={car.year || ""}
                     onChange={handleChange}
                 />
-                {errors.year && <p className="error">{errors.year}</p>}
-
-                <select name="fuelType" value={car.fuelType || ""} onChange={handleChange}>
+                {errors.year && <p className="error">{errors.year}</p>}                <select 
+                    name="fuelType" 
+                    value={car.fuelType || ""} 
+                    onChange={handleChange}
+                    className={errors.fuelType ? "error-input" : ""}
+                >
                     <option value="">Select Fuel Type</option>
                     <option value="Diesel">Diesel</option>
                     <option value="Gasoline">Gasoline</option>
                     <option value="Hybrid">Hybrid</option>
                     <option value="Electric">Electric</option>
                 </select>
+                {errors.fuelType && <p className="error">{errors.fuelType}</p>}
 
                 <input
                     type="text"
@@ -273,9 +305,9 @@ const UpdateCar = () => {
 
             <div className="image-preview">
                 {car.img ? (
-                    <>                <img 
+                    <>                        <img 
                             src={getDisplayUrl(car.img, 'https://www.shutterstock.com/shutterstock/photos/473088025/display_1500/stock-vector-car-logo-icon-emblem-design-vector-illustration-473088025.jpg')}
-                            alt={`${car.make} ${car.model}`} 
+                            alt={`${car.brand?.name || 'Car'} ${car.model}`} 
                             onError={(e) => {
                                 console.log("Image failed to load:", e.target.src);
                                 e.target.onerror = null;

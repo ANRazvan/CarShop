@@ -130,9 +130,8 @@ router.post('/generate/:count', authenticate, authorizeAdmin, (req, res) => {
                 message: "Invalid count. Please provide a number between 1 and 100."
             });
         }
-        
-        // Generate the requested number of cars
-        populateCars(count)
+          // Generate the requested number of cars with the current user's ID
+        populateCars(count, req.user.id)
             .then(generatedCars => {
                 // Broadcast event about the new cars if the broadcast function is available
                 if (req.app.locals.broadcast) {

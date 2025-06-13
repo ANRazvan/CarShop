@@ -133,19 +133,11 @@ const CarDetail = () => {
                 console.error("Exception during delete operation:", error);
                 alert("An unexpected error occurred while trying to delete the car.");
             }        }
-    };
-
-    // Handle add to cart
+    };    // Handle add to cart
     const handleAddToCart = async () => {
         if (!isAuthenticated()) {
             alert('Please log in to add items to your cart');
             navigate('/login');
-            return;
-        }
-
-        // Check if user is trying to add their own car
-        if (currentUser && car.userId === currentUser.id) {
-            alert('You cannot add your own car to the cart');
             return;
         }
 
@@ -296,22 +288,37 @@ const CarDetail = () => {
                     <p className="car-subtitle">{car.keywords}</p>
                     <h2 className="price">${car.price}</h2>
                     {car.owner && <p className="car-owner">Posted by: <span className="owner-name">{car.owner.username}</span></p>}                    <div className="button-group">
-                        <button 
-                            className="add-to-cart" 
-                            onClick={handleAddToCart}
-                            disabled={addingToCart || !isAuthenticated() || (currentUser && car.userId === currentUser.id)}
-                        >
-                            <i className="fas fa-shopping-cart" style={{marginRight: '8px'}}></i>
-                            {addingToCart ? 'Adding...' : 'Add to cart'}
-                        </button>
-                    <button className="delete" onClick={handleDelete}>
-                        <i className="fas fa-trash" style={{marginRight: '8px'}}></i>
-                        Delete
-                    </button>
-                    <button className="update" onClick={() => navigate(`/UpdateCar/${car.id}`)}>
-                        <i className="fas fa-edit" style={{marginRight: '8px'}}></i>
-                        Update
-                    </button>
+                        {/* Add to cart button - only show for cars not owned by current user */}
+                        {isAuthenticated() && currentUser && car.userId !== currentUser.id && (
+                            <button 
+                                className="add-to-cart" 
+                                onClick={handleAddToCart}
+                                disabled={addingToCart}
+                            >
+                                <i className="fas fa-shopping-cart" style={{marginRight: '8px'}}></i>
+                                {addingToCart ? 'Adding...' : 'Add to cart'}
+                            </button>
+                        )}
+
+                        {/* Delete button - show for admin (all cars) or car owner (own cars only) */}
+                        {isAuthenticated() && currentUser && (
+                            (currentUser.role === 'admin' || car.userId === currentUser.id) && (
+                                <button className="delete" onClick={handleDelete}>
+                                    <i className="fas fa-trash" style={{marginRight: '8px'}}></i>
+                                    Delete
+                                </button>
+                            )
+                        )}
+
+                        {/* Update button - show for admin (all cars) or car owner (own cars only) */}
+                        {isAuthenticated() && currentUser && (
+                            (currentUser.role === 'admin' || car.userId === currentUser.id) && (
+                                <button className="update" onClick={() => navigate(`/UpdateCar/${car.id}`)}>
+                                    <i className="fas fa-edit" style={{marginRight: '8px'}}></i>
+                                    Update
+                                </button>
+                            )
+                        )}
                     </div>
                 </div>
             </div>
@@ -320,8 +327,7 @@ const CarDetail = () => {
                 <h3>Description</h3>
                 <p>{car.description}</p>
             </div>
-            
-            {/* Video Section */}
+              {/* Video Section - only show controls for owner or admin */}
             <div className="video-section">
                 <h3>Car Video</h3>
                 {car.video ? (
@@ -342,32 +348,44 @@ const CarDetail = () => {
                             >
                                 Download Video
                             </a>
-                            <button 
-                                className="delete-video-btn" 
-                                onClick={handleDeleteVideo}
-                            >
-                                Delete Video
-                            </button>
+                            {/* Delete video button - only for owner or admin */}
+                            {isAuthenticated() && currentUser && (
+                                (currentUser.role === 'admin' || car.userId === currentUser.id) && (
+                                    <button 
+                                        className="delete-video-btn" 
+                                        onClick={handleDeleteVideo}
+                                    >
+                                        Delete Video
+                                    </button>
+                                )
+                            )}
                         </div>
                     </div>
                 ) : (
-                    <div className="video-upload">
-                        <p>No video available for this car. Upload one below:</p>
-                        <input 
-                            type="file" 
-                            accept="video/*" 
-                            onChange={handleVideoUpload} 
-                            disabled={isUploading || !isOnline || !serverAvailable}
-                            ref={fileInputRef}
-                            className="video-upload-input"
-                        />
-                        {isUploading && (
-                            <div className="upload-progress">
-                                <div className="progress-bar" style={{ width: `${videoUploadProgress}%` }}></div>
-                                <span>{videoUploadProgress}%</span>
-                            </div>
-                        )}
-                    </div>
+                    /* Video upload - only for owner or admin */
+                    isAuthenticated() && currentUser && (currentUser.role === 'admin' || car.userId === currentUser.id) ? (
+                        <div className="video-upload">
+                            <p>No video available for this car. Upload one below:</p>
+                            <input 
+                                type="file" 
+                                accept="video/*" 
+                                onChange={handleVideoUpload} 
+                                disabled={isUploading || !isOnline || !serverAvailable}
+                                ref={fileInputRef}
+                                className="video-upload-input"
+                            />
+                            {isUploading && (
+                                <div className="upload-progress">
+                                    <div className="progress-bar" style={{ width: `${videoUploadProgress}%` }}></div>
+                                    <span>{videoUploadProgress}%</span>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="video-unavailable">
+                            <p>No video available for this car.</p>
+                        </div>
+                    )
                 )}
             </div>
             

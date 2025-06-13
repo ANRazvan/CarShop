@@ -10,6 +10,11 @@ import AddCar from "./AddCar.jsx";
 import UpdateCar from './UpdateCar.jsx';
 import MyCars from './MyCars.jsx';
 import Cart from './Cart.jsx';
+import Checkout from './Checkout.jsx';
+import Orders from './Orders.jsx';
+import OrderDetail from './OrderDetail.jsx';
+import AdminOrders from './AdminOrders.jsx';
+import MyCarOrders from './MyCarOrders.jsx';
 import CarOperationsContext from './CarOperationsContext.jsx';
 // Import brand-related components
 import BrandList from './BrandList.jsx';
@@ -692,6 +697,11 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
                                 <Route path="/UpdateCar/:id" element={<UpdateCar />} />
                                 <Route path="/mycars" element={<MyCars />} />
                                 <Route path="/cart" element={<Cart />} />
+                                <Route path="/checkout" element={<Checkout />} />
+                                <Route path="/orders" element={<Orders />} />
+                                <Route path="/orders/:id" element={<OrderDetail />} />
+                                <Route path="/admin/orders" element={<AdminOrders />} />
+                                <Route path="/my-car-orders" element={<MyCarOrders />} />
                                 
                                 {/* Brand routes */}
                                 <Route path="/brands" element={<BrandList />} />
@@ -704,10 +714,11 @@ const deleteCar = useCallback((id, forceImmediate = false) => {
                                   {/* Authentication and User Monitoring routes */}
                                 <Route path="/login" element={<Login />} />
                                 <Route path="/user-monitor" element={<UserMonitor />} />
-                                <Route path="/security" element={<Security />} />                        </Routes>   
+                                <Route path="/security" element={<Security />} />                        
+                            </Routes>   
                             <Footer />
                             {/* Authentication Debug Panel */}
-                            <AuthDebug />
+                            {/* <AuthDebug /> */}
                             {/* AI Chat Widget */}
                             <AIChatWidget />
                         </Router>

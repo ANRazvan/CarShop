@@ -268,18 +268,7 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                         Add New Brand
                                     </Link>
                                 </div>
-                            )}
-                        </div>                          {/* Statistics link */}                        <Link to="/statistics" className="nav-link">Statistics</Link>
-                        
-                        {/* DB Performance link - Only show for admin users */}
-                        {isAdmin() && (
-                            <Link to="/db-performance" className="nav-link">DB Performance</Link>
-                        )}
-                        
-                        {/* User Monitoring - Only show for admin users */}
-                        {isAdmin() && (
-                            <Link to="/user-monitor" className="nav-link">User Monitor</Link>
-                        )}
+                            )}                        </div>
 
                         {/* Add buttons for sync and restore functionality */}
                         {getOfflineQueue().length > 0 && (
@@ -302,9 +291,8 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                 {cartCount > 0 && (
                                     <span className="cart-badge">{cartCount}</span>
                                 )}
-                            </Link>
-                        )}
-                        
+                            </Link>                        )}
+
                         {/* Auth buttons */}
                         {isAuthenticated() ? (
                             <div className="dropdown auth-dropdown">
@@ -320,14 +308,77 @@ const Navbar = ({ wsStatus = 'disconnected' }) => {
                                         <div className="dropdown-item user-info">
                                             <span className="username">{currentUser?.username}</span>
                                             <span className={`role-badge ${currentUser?.role}`}>{currentUser?.role}</span>
-                                        </div>
-                                        <Link 
+                                        </div>                                        <Link 
                                             to="/security" 
                                             className="dropdown-item"
                                             onClick={handleMenuItemClick}
                                         >
-                                            Security Settings
+                                            🔒 Security Settings
                                         </Link>
+                                        
+                                        <hr className="dropdown-divider" />
+                                          {/* Orders link */}
+                                        <Link 
+                                            to="/orders" 
+                                            className="dropdown-item"
+                                            onClick={handleMenuItemClick}
+                                            title="My Orders"
+                                        >
+                                            📋 My Orders
+                                        </Link>
+
+                                        {/* My Car Orders link */}
+                                        <Link 
+                                            to="/my-car-orders" 
+                                            className="dropdown-item"
+                                            onClick={handleMenuItemClick}
+                                            title="Orders for cars I'm selling"
+                                        >
+                                            🏪 My Car Orders
+                                        </Link>
+
+                                        {/* Statistics link */}
+                                        <Link 
+                                            to="/statistics" 
+                                            className="dropdown-item"
+                                            onClick={handleMenuItemClick}
+                                        >
+                                            📊 Statistics
+                                        </Link>
+
+                                        {/* Admin-only links */}
+                                        {isAdmin() && (
+                                            <>
+                                                <hr className="dropdown-divider" />
+                                                
+                                                <Link 
+                                                    to="/admin/orders" 
+                                                    className="dropdown-item admin-item"
+                                                    onClick={handleMenuItemClick}
+                                                    title="Manage Orders"
+                                                >
+                                                    🏪 Order Management
+                                                </Link>
+                                                
+                                                <Link 
+                                                    to="/db-performance" 
+                                                    className="dropdown-item admin-item"
+                                                    onClick={handleMenuItemClick}
+                                                >
+                                                    ⚡ DB Performance
+                                                </Link>
+                                                
+                                                <Link 
+                                                    to="/user-monitor" 
+                                                    className="dropdown-item admin-item"
+                                                    onClick={handleMenuItemClick}
+                                                >
+                                                    👥 User Monitor
+                                                </Link>
+                                            </>
+                                        )}
+                                        
+                                        <hr className="dropdown-divider" />
                                         <button 
                                             className="dropdown-item" 
                                             onClick={() => {

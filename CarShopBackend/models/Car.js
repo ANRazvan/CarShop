@@ -57,9 +57,7 @@ module.exports = (sequelize, DataTypes) => {
 }, {
   tableName: 'Cars', // Specify the exact table name with capitalization
   timestamps: true
-});
-
-    // Define associations
+});    // Define associations
     Car.associate = function(models) {
       // Car belongs to one Brand
       Car.belongsTo(models.Brand, { 
@@ -71,6 +69,18 @@ module.exports = (sequelize, DataTypes) => {
       Car.belongsTo(models.User, {
         foreignKey: 'userId',
         as: 'owner'
+      });
+
+      // Car has many CartItems
+      Car.hasMany(models.CartItem, {
+        foreignKey: 'carId',
+        as: 'cartItems'
+      });
+
+      // Car has many OrderItems
+      Car.hasMany(models.OrderItem, {
+        foreignKey: 'carId',
+        as: 'orderItems'
       });
     };
 

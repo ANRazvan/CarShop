@@ -405,6 +405,24 @@ body {
     box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
 }
 
+.video-unavailable {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    padding: 30px;
+    border: 2px solid #e0e0e0;
+    border-radius: 20px;
+    background: rgba(248, 248, 248, 0.8);
+    margin-top: 15px;
+}
+
+.video-unavailable p {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+}
+
 .upload-progress {
     width: 100%;
     max-width: 400px;

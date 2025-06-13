@@ -664,9 +664,6 @@ const Statistics = ({ cars: propCars }) => {
           <button className="apply-filters" onClick={() => fetchStatistics(false)}>
             Apply Filters
           </button>
-          <button className="refresh-cache" onClick={() => fetchStatistics(true)}>
-            Refresh Cache
-          </button>
           <div className="cache-note">
             {performanceData.length > 0 && performanceData[performanceData.length-1].cached 
               ? <span className="cache-hit">Using cached data (faster)</span>

@@ -99,6 +99,7 @@ const statisticsRoutes = require('./routes/statistics');
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const cartRoutes = require('./routes/cart');
+const orderRoutes = require('./routes/orders');
 const { handleMulterError, handleGenericErrors } = require('./middleware/errorHandlers');
 
 // Register routes
@@ -108,6 +109,7 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
