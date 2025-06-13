@@ -2,10 +2,15 @@ import React, { useState } from "react";
 import "./CarList.css"; // Using the same CSS file as CarList
 import { Link } from "react-router-dom";
 import config from "./config.js";
+import { useCart } from "./CartContext";
+import { useAuth } from "./hooks/useAuth";
 
 const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedCar, setEditedCar] = useState({ ...car });
+  const [addingToCart, setAddingToCart] = useState(false);
+  const { addToCart } = useCart();
+  const { isAuthenticated, currentUser } = useAuth();
 
   // Display a placeholder image if the car image is not available
   const imageUrl = car.img || "/placeholder.jpeg";
@@ -28,9 +33,32 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
     onUpdate(car.id, editedCar);
     setIsEditing(false);
   };
-
   const handleDelete = () => {
     onDelete(car.id);
+  };
+
+  const handleAddToCart = async () => {
+    if (!isAuthenticated()) {
+      alert('Please log in to add items to your cart');
+      return;
+    }
+
+    // Check if user is trying to add their own car
+    if (currentUser && car.userId === currentUser.id) {
+      alert('You cannot add your own car to the cart');
+      return;
+    }
+
+    try {
+      setAddingToCart(true);
+      await addToCart(car.id);
+      alert('Car added to cart successfully!');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert(error.message || 'Failed to add car to cart');
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   return (
@@ -102,9 +130,19 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
             <p>Year: {car.year}</p>
             <p>Price: ${car.price?.toLocaleString()}</p>
             <p>Fuel Type: {car.fuelType}</p>
-            {car.owner && <p className="car-owner">Owner: {car.owner.username}</p>}
+            {car.owner && <p className="car-owner">Owner: {car.owner.username}</p>}            
             <div className="card-actions">
               <Link to={`/cars/${car.id}`} className="view-button">View Details</Link>
+              {isAuthenticated() && currentUser?.id !== car.userId && (
+                <button 
+                  onClick={handleAddToCart} 
+                  className="cart-button"
+                  disabled={addingToCart || isOffline}
+                  title="Add to cart"
+                >
+                  {addingToCart ? '⏳' : '🛒'} {addingToCart ? 'Adding...' : 'Add to Cart'}
+                </button>
+              )}
               <button onClick={handleEdit} className="edit-button" disabled={isOffline}>Edit</button>
               <button onClick={handleDelete} className="delete-button">Delete</button>
             </div>

@@ -930,11 +930,7 @@ const handleFilterChange = (filterType, value) => {
                     onFilterChange={handleFilterChange}
                     disabled={!isOnline || !serverAvailable}
                 />
-                <div className="generatebuttoncontainer">
-                    <button className="generatebutton" onClick={toggleGeneration}>
-                        {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
-                    </button>
-                </div>
+                
                 <div className="main-content">
                     {syncStatus && (
                         <div className="sync-status-notification">
@@ -946,7 +942,11 @@ const handleFilterChange = (filterType, value) => {
                             Real-time update received!
                         </div>
                     )}
-                
+                    <div className="generatebuttoncontainer">
+                    <button className="generatebutton" onClick={toggleGeneration}>
+                        {isGenerating ? "Stop Generating Cars" : "Start Generating Cars"}
+                    </button>
+                </div>  
                     <CarList 
                         cars={cars}
                         loading={loading}

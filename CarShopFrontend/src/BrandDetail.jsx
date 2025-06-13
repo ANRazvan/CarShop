@@ -138,7 +138,7 @@ const BrandDetail = () => {
           
           {cars.length > 0 ? (
             <>
-              <div className="car-list">
+              <div className="brand-car-list">
                 {cars.map(car => (
                   <Link key={car.id} to={`/cars/${car.id}`} className="car-item">
                     <div className="car-image">
