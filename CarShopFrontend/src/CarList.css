@@ -69,8 +69,6 @@ body {
     padding: 1rem; /* Add some padding around the list */
     box-sizing: border-box;
     margin: 0;
-    background: rgba(0, 255, 0, 0.1); /* DEBUG: Green background to see container */
-    border: 2px solid green; /* DEBUG: Green border */
 }
 
 /* Container for the entire car list section */
@@ -79,8 +77,6 @@ body {
     padding: 0;
     margin: 0;
     box-sizing: border-box;
-    background: rgba(255, 0, 0, 0.1); /* DEBUG: Red background to see container */
-    border: 2px solid red; /* DEBUG: Red border */
 }
 
 /* UPDATED: Auto-sizing grid for 4 cards per row with proper spacing */
@@ -92,8 +88,6 @@ body {
     margin: 0;
     padding: 1.5rem; /* Generous padding around the grid */
     box-sizing: border-box;
-    background: rgba(0, 0, 255, 0.1); /* DEBUG: Blue background to see grid */
-    border: 2px solid blue; /* DEBUG: Blue border */
 }
 
 .car-card {
