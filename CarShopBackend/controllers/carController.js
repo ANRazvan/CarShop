@@ -10,9 +10,9 @@ const fuelTypes = ['Diesel', 'Gasoline', 'Hybrid', 'Electric'];
 
 // Available images
 const availableImages = [
-  'mazda1.jpeg', 'mazda2.jpeg', 'audia4.jpeg', 'bmw3series.jpeg', 
-  'camry.jpg', 'cclass.jpeg', 'civic.jpeg', 'mondeo.jpeg', 
-  'optima.jpeg', 'sonata.jpeg', 'altima.jpeg'
+  'mazda_6.jpeg', 'toyota_hilux.jpeg', 'audia4.jpeg', 'altima.jpeg', 
+  'camry.jpg', 'cclass.jpeg', 'civic.jpeg', 
+  'optima.jpeg', 'sonata.jpeg'
 ];
 
 // Model mappings - key is brandId, value is array of model names
@@ -21,7 +21,7 @@ const brandModels = {
 };
 
 // Generate a random car
-const generateCar = async () => {
+const generateCar = async (userId = null) => {
   try {
     // Fetch all brands from database
     const brands = await Brand.findAll();
@@ -158,9 +158,8 @@ const generateCar = async () => {
       console.error('Error reading image file:', err);
       // Continue without image if there's an error
     }
-    
-    // Create the car object - populate both make and brandId for compatibility
-    return {
+      // Create the car object - populate both make and brandId for compatibility
+    const carData = {
       make: brand.name,  // Keep the old field during transition
       brandId: brand.id,  // Use brandId for the new relationship
       model,
@@ -172,6 +171,13 @@ const generateCar = async () => {
       img: imageData,
       imgType
     };
+
+    // Add userId if provided
+    if (userId) {
+      carData.userId = userId;
+    }
+
+    return carData;
   } catch (error) {
     console.error('Error generating car:', error);
     throw error;
@@ -179,11 +185,11 @@ const generateCar = async () => {
 };
 
 // Generate multiple cars
-const generateCars = async (count) => {
+const generateCars = async (count, userId = null) => {
   const newCars = [];
   for (let i = 0; i < count; i++) {
     try {
-      const car = await generateCar();
+      const car = await generateCar(userId);
       newCars.push(car);
     } catch (error) {
       console.error(`Error generating car #${i}:`, error);
@@ -193,9 +199,9 @@ const generateCars = async (count) => {
 };
 
 // Populate database with generated cars
-const populateCars = async (count) => {
+const populateCars = async (count, userId = null) => {
   try {
-    const generatedCars = await generateCars(count);
+    const generatedCars = await generateCars(count, userId);
     // Create cars in database using Sequelize
     const createdCars = await Car.bulkCreate(generatedCars);
     return createdCars;

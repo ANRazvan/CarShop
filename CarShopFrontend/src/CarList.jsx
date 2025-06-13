@@ -259,13 +259,16 @@ const CarListComponent = ({
                             <p>Try adjusting your search criteria or check back later.</p>
                         </div>
                     </div>
-                ) : (                    useInfiniteScroll ? (
-                        <div className="car-list">
+                ) : (                    useInfiniteScroll ? (                        <div className="car-list">
                             <div className="car-cards">
-                                {cars.map((car) => (
+                                {cars
+                                    .filter((car, index, array) => 
+                                        array.findIndex(c => c.id === car.id) === index
+                                    )
+                                    .map((car) => (
                                     <CarCard
                                         car={car}
-                                        key={car.id}
+                                        key={`car-${car.id}-${car.updatedAt || car.createdAt || Date.now()}`}
                                         onDelete={handleDelete}
                                         onUpdate={handleUpdate}
                                         isOffline={isOffline}
@@ -281,13 +284,16 @@ const CarListComponent = ({
                                 endMessage={<p>You've seen all {totalCars} cars!</p>}
                             />
                         </div>
-                    ) : (
-                        <div className="car-list">
+                    ) : (                        <div className="car-list">
                             <div className="car-cards">
-                                {cars.map((car) => (
+                                {cars
+                                    .filter((car, index, array) => 
+                                        array.findIndex(c => c.id === car.id) === index
+                                    )
+                                    .map((car) => (
                                     <CarCard
                                         car={car}
-                                        key={car.id}
+                                        key={`car-${car.id}-${car.updatedAt || car.createdAt || Date.now()}`}
                                         onDelete={handleDelete}
                                         onUpdate={handleUpdate}
                                         isOffline={isOffline}
@@ -295,29 +301,9 @@ const CarListComponent = ({
                                 ))}
                             </div>
                         </div>
-                    )
-                )}
+                    )                )}
                 
-                {/* Use the new InfiniteScroller component for better batch loading */}
-                {useInfiniteScroll && cars.length > 0 && (
-                    <InfiniteScroller
-                        onLoadMore={handleLoadMore}
-                        hasMore={!allItemsLoaded}
-                        loading={loading}
-                        batchSize={batchSize}
-                        loadingComponent={
-                            <div className="spinner-small-container">
-                                <div className="spinner-small"></div>
-                                <span>Loading more cars...</span>
-                            </div>
-                        }
-                        endMessage={
-                            <div className="all-items-loaded">
-                                <p>All cars loaded</p>
-                            </div>
-                        }
-                    />
-                )}
+                {/* Pagination is handled within the conditional blocks above */}
             </div>
 
             {/* Show pagination only when not using infinite scroll */}
