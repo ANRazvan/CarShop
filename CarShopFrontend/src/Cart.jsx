@@ -133,7 +133,7 @@ const Cart = () => {
               
               return (
                 <div key={item.id} className={`cart-item ${itemLoading ? 'loading' : ''}`}>
-                  <div className="car-image">
+                  <div className="cart-car-image">
                     <img 
                       src={car?.img || '/placeholder.jpeg'} 
                       alt={`${brand?.name || 'Car'} ${car?.model || ''}`}

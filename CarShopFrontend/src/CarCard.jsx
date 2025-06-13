@@ -130,7 +130,8 @@ const CarCard = ({ car, onDelete, onUpdate, isOffline }) => {
             <p>Year: {car.year}</p>
             <p>Price: ${car.price?.toLocaleString()}</p>
             <p>Fuel Type: {car.fuelType}</p>
-            {car.owner && <p className="car-owner">Owner: {car.owner.username}</p>}            <div className="card-actions">
+            {car.owner && <p className="car-owner">Owner: {car.owner.username}</p>}            
+            <div className="card-actions">
               <Link to={`/cars/${car.id}`} className="view-button">View Details</Link>
               {isAuthenticated() && currentUser?.id !== car.userId && (
                 <button 

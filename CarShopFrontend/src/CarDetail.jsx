@@ -278,19 +278,19 @@ const CarDetail = () => {
                     {!isOnline ? 'You are offline - Changes will be synced when you reconnect' : 
                                'Server is unavailable - Changes will be synced when the server is back'}
                 </div>
-            )}
-
-            <div className="car-main">
-                <img
-                    src={getDisplayUrl(car.img, '/placeholder.jpeg')}
-                    alt={`${car.make} ${car.model}`}
-                    className="car-image"
-                    onError={(e) => {
-                        console.log("Image failed to load:", e.target.src);
-                        e.target.onerror = null;
-                        e.target.src = '/placeholder.jpeg';
-                    }}
-                />
+            )}            <div className="car-main">
+                <div className="car-image-container">
+                    <img
+                        src={getDisplayUrl(car.img, '/placeholder.jpeg')}
+                        alt={`${car.make} ${car.model}`}
+                        className="car-image"
+                        onError={(e) => {
+                            console.log("Image failed to load:", e.target.src);
+                            e.target.onerror = null;
+                            e.target.src = '/placeholder.jpeg';
+                        }}
+                    />
+                </div>
                 <div className="car-details">
                     <h1 className="car-title">{car.make} {car.model}</h1>
                     <p className="car-subtitle">{car.keywords}</p>
