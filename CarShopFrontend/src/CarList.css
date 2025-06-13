@@ -66,7 +66,7 @@ body {
 
 .car-list {
     width: 100%;
-    padding: 0.5rem; /* Minimal padding */
+    padding: 1rem; /* Add some padding around the list */
     box-sizing: border-box;
     margin: 0;
     background: rgba(0, 255, 0, 0.1); /* DEBUG: Green background to see container */
@@ -83,14 +83,14 @@ body {
     border: 2px solid red; /* DEBUG: Red border */
 }
 
-/* UPDATED: Simplified grid for 4 cards per row */
+/* UPDATED: Auto-sizing grid for 4 cards per row with proper spacing */
 .car-cards {
     display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important; /* Use minmax to prevent overflow */
-    gap: 0.8rem; /* Reduced gap to give more space */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important; /* Auto-sizing with min width */
+    gap: 1.5rem; /* Good spacing between cards */
     width: 100%;
     margin: 0;
-    padding: 0.5rem; /* Minimal padding */
+    padding: 1.5rem; /* Generous padding around the grid */
     box-sizing: border-box;
     background: rgba(0, 0, 255, 0.1); /* DEBUG: Blue background to see grid */
     border: 2px solid blue; /* DEBUG: Blue border */
@@ -104,18 +104,19 @@ body {
     border-radius: 15px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
     transition: all 0.3s ease;
-    width: 100%;
-    max-width: 100%; /* Ensure it never exceeds container */
+    width: 100%; /* Take full width of grid column */
     font-size: 0.9rem;
     overflow: hidden;
     box-sizing: border-box;
     min-height: 320px;
-    height: auto;
+    height: auto; /* Auto height to fit content */
     position: relative;
     padding: 16px;
-    /* Ensure grid placement */
+    /* Auto grid placement */
     grid-column: auto;
     grid-row: auto;
+    /* Add some margin for extra visual spacing */
+    margin: 0.5rem;
 }
 
 .car-card:hover {
