@@ -196,6 +196,23 @@
     transform: translateX(5px);
 }
 
+.dropdown-divider {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 8px 0;
+    border: none;
+}
+
+.dropdown-item.admin-item {
+    color: #e67e22;
+    font-weight: 500;
+}
+
+.dropdown-item.admin-item:hover {
+    background: rgba(230, 126, 34, 0.1);
+    color: #d35400;
+}
+
 /* Status indicators */
 .websocket-status,
 .network-status,

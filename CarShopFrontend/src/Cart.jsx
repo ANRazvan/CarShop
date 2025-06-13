@@ -43,15 +43,14 @@ const Cart = () => {
       alert(error.message || 'Failed to clear cart');
     }
   };
-
   const handleCheckout = () => {
     if (!cart?.items?.length) {
       alert('Your cart is empty');
       return;
     }
     
-    // For now, just show an alert. In a real app, this would go to checkout process
-    alert(`Checkout functionality coming soon!\n\nTotal: $${parseFloat(cart.total || 0).toLocaleString()}`);
+    // Navigate to checkout page
+    navigate('/checkout');
   };
 
   if (!isAuthenticated()) {

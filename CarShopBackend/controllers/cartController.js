@@ -4,8 +4,7 @@ const { Cart, CartItem, Car, Brand, User } = require('../models');
 const getCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    // Find or create an active cart for the user
+      // Find or create an active cart for the user
     let cart = await Cart.findOne({
       where: {
         userId: userId,
@@ -24,6 +23,11 @@ const getCart = async (req, res) => {
                   model: Brand,
                   as: 'brand',
                   attributes: ['id', 'name']
+                },
+                {
+                  model: User,
+                  as: 'owner',
+                  attributes: ['id', 'username']
                 }
               ]
             }
@@ -39,8 +43,7 @@ const getCart = async (req, res) => {
         total: 0.00,
         status: 'active'
       });
-      
-      // Fetch the cart with associations
+        // Fetch the cart with associations
       cart = await Cart.findByPk(cart.id, {
         include: [
           {
@@ -55,6 +58,11 @@ const getCart = async (req, res) => {
                     model: Brand,
                     as: 'brand',
                     attributes: ['id', 'name']
+                  },
+                  {
+                    model: User,
+                    as: 'owner',
+                    attributes: ['id', 'username']
                   }
                 ]
               }
@@ -85,15 +93,18 @@ const addToCart = async (req, res) => {
 
     if (!carId) {
       return res.status(400).json({ error: 'Car ID is required' });
-    }
-
-    // Check if car exists
+    }    // Check if car exists
     const car = await Car.findByPk(carId, {
       include: [
         {
           model: Brand,
           as: 'brand',
           attributes: ['id', 'name']
+        },
+        {
+          model: User,
+          as: 'owner',
+          attributes: ['id', 'username']
         }
       ]
     });
@@ -147,9 +158,7 @@ const addToCart = async (req, res) => {
       where: { cartId: cart.id }
     });
 
-    await cart.update({ total: cartTotal || 0 });
-
-    // Fetch the updated cart with all items
+    await cart.update({ total: cartTotal || 0 });    // Fetch the updated cart with all items
     const updatedCart = await Cart.findByPk(cart.id, {
       include: [
         {
@@ -164,6 +173,11 @@ const addToCart = async (req, res) => {
                   model: Brand,
                   as: 'brand',
                   attributes: ['id', 'name']
+                },
+                {
+                  model: User,
+                  as: 'owner',
+                  attributes: ['id', 'username']
                 }
               ]
             }
@@ -239,9 +253,7 @@ const removeFromCart = async (req, res) => {
       where: { cartId: cart.id }
     });
 
-    await cart.update({ total: cartTotal || 0 });
-
-    // Fetch the updated cart
+    await cart.update({ total: cartTotal || 0 });    // Fetch the updated cart
     const updatedCart = await Cart.findByPk(cart.id, {
       include: [
         {
@@ -256,6 +268,11 @@ const removeFromCart = async (req, res) => {
                   model: Brand,
                   as: 'brand',
                   attributes: ['id', 'name']
+                },
+                {
+                  model: User,
+                  as: 'owner',
+                  attributes: ['id', 'username']
                 }
               ]
             }

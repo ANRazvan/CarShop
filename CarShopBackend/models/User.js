@@ -98,17 +98,29 @@ User.associate = function(models) {
   });
   
   // User has many monitored entries
-      User.hasMany(models.MonitoredUser, {
-        foreignKey: 'userId',
-        as: 'monitoringEvents'
-      });
-      
-      // User has many Cars (owned cars)
-      User.hasMany(models.Car, {
-        foreignKey: 'userId',
-        as: 'ownedCars'
-      });
-    };
+  User.hasMany(models.MonitoredUser, {
+    foreignKey: 'userId',
+    as: 'monitoringEvents'
+  });
+  
+  // User has many Cars (owned cars)
+  User.hasMany(models.Car, {
+    foreignKey: 'userId',
+    as: 'ownedCars'
+  });
+
+  // User has many Carts
+  User.hasMany(models.Cart, {
+    foreignKey: 'userId',
+    as: 'carts'
+  });
+
+  // User has many Orders
+  User.hasMany(models.Order, {
+    foreignKey: 'userId',
+    as: 'orders'
+  });
+};
 
     return User;
 };
