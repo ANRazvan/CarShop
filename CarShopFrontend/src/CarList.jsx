@@ -244,9 +244,8 @@ const CarListComponent = ({
                         </div>
                     )}
                 </div>
-            </div>
-
-            <div className="car-list">
+            </div>            
+            <div className="car-list-container">
                 {(loading && !localLoadingTimeout && cars.length === 0) ? (
                     <div className="car-list-loading">
                         <div className="spinner"></div>
@@ -261,7 +260,7 @@ const CarListComponent = ({
                         </div>
                     </div>
                 ) : (                    useInfiniteScroll ? (
-                        <div className="car-list-container">
+                        <div className="car-list">
                             <div className="car-cards">
                                 {cars.map((car) => (
                                     <CarCard
@@ -283,7 +282,7 @@ const CarListComponent = ({
                             />
                         </div>
                     ) : (
-                        <div className="car-list-container">
+                        <div className="car-list">
                             <div className="car-cards">
                                 {cars.map((car) => (
                                     <CarCard

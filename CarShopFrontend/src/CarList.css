@@ -1,3 +1,10 @@
+/* CSS Custom Properties for responsive design */
+:root {
+    --card-min-width: 280px;
+    --card-gap: 1rem;
+    --card-padding: 0.8rem;
+}
+
 .pagination {
     display: flex;
     justify-content: center;
@@ -52,24 +59,41 @@
 body {
     margin: 0;
     padding: 0;
+    margin-right:auto;
     overflow-x: hidden; /* Prevents horizontal scrolling */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .car-list {
     width: 100%;
-    padding: 0.8rem; /* Slightly less padding */
+    padding: 0.5rem; /* Minimal padding */
     box-sizing: border-box;
+    margin: 0;
+    background: rgba(0, 255, 0, 0.1); /* DEBUG: Green background to see container */
+    border: 2px solid green; /* DEBUG: Green border */
 }
 
-.car-cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4 equal columns */
-    gap: 1rem;
-    width: 100%; /* Fill parent */
-    min-width: 0;
+/* Container for the entire car list section */
+.car-list-container {
+    width: 100%;
+    padding: 0;
     margin: 0;
     box-sizing: border-box;
+    background: rgba(255, 0, 0, 0.1); /* DEBUG: Red background to see container */
+    border: 2px solid red; /* DEBUG: Red border */
+}
+
+/* UPDATED: Simplified grid for 4 cards per row */
+.car-cards {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important; /* Use minmax to prevent overflow */
+    gap: 0.8rem; /* Reduced gap to give more space */
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem; /* Minimal padding */
+    box-sizing: border-box;
+    background: rgba(0, 0, 255, 0.1); /* DEBUG: Blue background to see grid */
+    border: 2px solid blue; /* DEBUG: Blue border */
 }
 
 .car-card {
@@ -77,17 +101,21 @@ body {
     flex-direction: column;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
     transition: all 0.3s ease;
     width: 100%;
-    min-width: 50px;
-    font-size: 1rem;
+    max-width: 100%; /* Ensure it never exceeds container */
+    font-size: 0.9rem;
     overflow: hidden;
     box-sizing: border-box;
-    min-height: 200px;
-    height: 100%;
+    min-height: 320px;
+    height: auto;
     position: relative;
+    padding: 16px;
+    /* Ensure grid placement */
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .car-card:hover {
@@ -104,10 +132,10 @@ body {
     display: block;
     width: 100%;
     max-width: 100%;
-    height: 160px; /* make image taller and card visually wider */
+    height: 140px; /* Increased height for better proportions */
     object-fit: cover;
-    border-radius: 6px 6px 0 0;
-    margin-bottom: 8px; /* Reduced margin */
+    border-radius: 8px;
+    margin-bottom: 16px; /* Increased margin */
     flex-shrink: 0;
 }
 
@@ -249,21 +277,32 @@ body {
     width: 100%;
 }
 
-/* Optimizing text display in smaller cards */
+/* Optimizing text display in cards */
 .car-card h3 {
-    font-size: 1rem;
-    margin: 0.3rem 0;
+    font-size: 1.1rem; /* Increased font size */
+    margin: 0 0 10px 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 600;
+    color: #333;
 }
 
 .car-card p {
-    margin: 0.3rem 0;
+    margin: 6px 0; /* Increased margin */
     line-height: 1.4;
+    font-size: 0.9rem; /* Slightly larger font */
+    color: #666;
 }
 
-/* Compact button styling for smaller cards */
+.car-card .price {
+    font-weight: bold;
+    font-size: 1.1rem; /* Increased price font size */
+    color: #2c3e50;
+    margin: 8px 0;
+}
+
+/* Compact button styling for cards */
 .car-card button {
     padding: 4px 8px;
     font-size: 0.85rem;
@@ -433,21 +472,24 @@ body {
 
 .card-actions {
     display: flex !important;
-    gap: 5px !important;
-    flex-wrap: wrap !important;
-    margin-top: 10px !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-top: auto !important; /* Push buttons to bottom */
+    padding-top: 16px !important;
 }
 
 .card-actions button,
 .card-actions .view-button {
-    padding: 6px 12px !important;
-    border-radius: 4px !important;
-    font-size: 0.8rem !important;
+    padding: 10px 14px !important;
+    border-radius: 6px !important;
+    font-size: 0.85rem !important;
     text-decoration: none !important;
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-height: 32px !important;
+    min-height: 40px !important;
+    width: 100% !important;
+    font-weight: 500 !important;
 }
 
 .view-button {
@@ -484,20 +526,114 @@ body {
     border-color: #c0392b !important;
 }
 
-@media (max-width: 1200px) {
+/* UPDATED: Responsive breakpoints optimized for 4-card layout */
+/* Large screens: 4 cards per row - make sure they use full width */
+@media (min-width: 1000px) {
     .car-cards {
-        grid-template-columns: repeat(3, 1fr); /* 3 columns on medium screens */
+        grid-template-columns: repeat(4, 1fr);
+        max-width: none; /* Remove any max-width constraints */
+    }
+    
+    .car-list {
+        max-width: none; /* Ensure full width usage */
+        padding: 1rem;
     }
 }
 
-@media (max-width: 900px) {
+/* Medium-large screens: 3 cards per row */
+@media (max-width: 999px) and (min-width: 700px) {
     .car-cards {
-        grid-template-columns: repeat(2, 1fr); /* 2 columns on smaller screens */
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
-@media (max-width: 600px) {
+/* Medium screens: 2 cards per row */
+@media (max-width: 699px) and (min-width: 500px) {
     .car-cards {
-        grid-template-columns: 1fr; /* 1 column on mobile */
+        grid-template-columns: repeat(2, 1fr);
     }
+}
+
+/* Small screens: 1 card per row */
+@media (max-width: 499px) {
+    :root {
+        --card-gap: 0.8rem;
+        --card-padding: 0.4rem;
+    }
+    
+    .car-cards {
+        grid-template-columns: 1fr;
+        padding: 0.5rem;
+    }
+    
+    .car-card {
+        min-height: 180px;
+        min-width: auto;
+    }
+    
+    .car-img {
+        height: 140px;
+    }
+}
+
+/* Very small screens: 1 card per row with tighter spacing */
+@media (max-width: 400px) {
+    :root {
+        --card-gap: 0.6rem;
+        --card-padding: 0.3rem;
+    }
+    
+    .car-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* UPDATED: Container queries for better responsive control */
+@supports (container-type: inline-size) {
+    .car-list-container {
+        container-type: inline-size;
+        container-name: car-list-container;
+    }
+    
+    /* Container-based responsive grid */
+    @container car-list-container (max-width: 400px) {
+        .car-cards {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }    }
+    
+    @container car-list-container (min-width: 401px) and (max-width: 600px) {
+        .car-cards {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @container car-list-container (min-width: 601px) and (max-width: 900px) {
+        .car-cards {
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        }
+    }
+    
+    @container car-list-container (min-width: 901px) and (max-width: 1200px) {
+        .car-cards {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+    }
+    
+    @container car-list-container (min-width: 1201px) {
+        .car-cards {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+    }
+}
+
+/* Main page container to ensure proper layout containment */
+.main-content {
+    width: 100%;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    position: relative;
 }
